@@ -309,22 +309,22 @@ struct OptimizedElevationChartView: View {
     }
     
     // Precompute data for efficient rendering
-    private var chartData: (lineData: [(x: Double, y: Double)], areaPath: Path) {
+    private var chartData: (lineData: [(x: Double, y: Double, originalIndex: Int)], areaPath: Path) {
         // For very large datasets, use a simplified representation
         let useSimplified = points.count > 1000
         let step = useSimplified ? max(1, points.count / 500) : 1
         
-        var linePoints: [(x: Double, y: Double)] = []
+        var linePoints: [(x: Double, y: Double, originalIndex: Int)] = []
         linePoints.reserveCapacity(points.count / step + 1)
         
         for i in stride(from: 0, to: points.count, by: step) {
-            linePoints.append((x: points[i].distance, y: points[i].elevation))
+            linePoints.append((x: points[i].distance, y: points[i].elevation, originalIndex: i))
         }
         
         // Always include the last point
         if !points.isEmpty && (points.count - 1) % step != 0 {
             let last = points.last!
-            linePoints.append((x: last.distance, y: last.elevation))
+            linePoints.append((x: last.distance, y: last.elevation, originalIndex: points.count - 1))
         }
         
         // Create area path for fill
@@ -393,6 +393,37 @@ struct OptimizedElevationChartView: View {
         }
     }
 
+    // Add this function before the body property
+    private func interpolateElevation(for distance: Double, in lineData: [(x: Double, y: Double, originalIndex: Int)]) -> Double {
+        guard lineData.count > 1 else {
+            return findClosestPoint(to: distance)?.point.elevation ?? 0
+        }
+        
+        var leftPoint: (x: Double, y: Double, originalIndex: Int)? = nil
+        var rightPoint: (x: Double, y: Double, originalIndex: Int)? = nil
+        
+        for i in 0..<lineData.count {
+            if lineData[i].x <= distance {
+                leftPoint = lineData[i]
+            }
+            if lineData[i].x >= distance && rightPoint == nil {
+                rightPoint = lineData[i]
+                break
+            }
+        }
+        
+        if let left = leftPoint, let right = rightPoint, left.x != right.x {
+            let ratio = (distance - left.x) / (right.x - left.x)
+            return left.y + (right.y - left.y) * ratio
+        } else if let left = leftPoint {
+            return left.y
+        } else if let right = rightPoint {
+            return right.y
+        } else {
+            return findClosestPoint(to: distance)?.point.elevation ?? 0
+        }
+    }
+
     var body: some View {
         let data = chartData
         
@@ -416,21 +447,6 @@ struct OptimizedElevationChartView: View {
                 )
                 .foregroundStyle(Color.gray.opacity(0.3))
                 .zIndex(-1)
-
-                // Show point marker
-                PointMark(
-                    x: .value("Distance", selectedPoint.distance),
-                    y: .value("Elevation", selectedPoint.elevation)
-                )
-                .foregroundStyle(Color.white)
-                .symbolSize(150)
-
-                PointMark(
-                    x: .value("Distance", selectedPoint.distance),
-                    y: .value("Elevation", selectedPoint.elevation)
-                )
-                .foregroundStyle(Color.red)
-                .symbolSize(100)
             }
 
             // Show drag selection area
@@ -527,6 +543,30 @@ struct OptimizedElevationChartView: View {
                     ),
                     lineWidth: 2
                 )
+                
+                // Draw hover point directly on the line
+                if let distance = selectedDistance,
+                   let (selectedPoint, _) = findClosestPoint(to: distance) {
+                    
+                    // For simplified line data, find the actual elevation at this distance
+                    // by interpolating between the nearest line segments
+                    let xPos = xScale(selectedPoint.distance)
+                    
+                    let actualElevation = interpolateElevation(for: selectedPoint.distance, in: data.lineData)
+                    let yPos = yScale(actualElevation)
+                    
+                    // Outer white circle
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 12, height: 12)
+                        .position(x: xPos, y: yPos)
+                    
+                    // Inner red circle
+                    Circle()
+                        .fill(Color.red)
+                        .frame(width: 8, height: 8)
+                        .position(x: xPos, y: yPos)
+                }
             }
         }
         // Use chart overlay for interactions
