@@ -1,6 +1,7 @@
 import SwiftUI
 import MapKit
 import CoreLocation
+import UIKit
 
 // iOS-specific MapView implementation
 struct MapView: UIViewRepresentable, MapViewShared {
@@ -55,7 +56,20 @@ struct MapView: UIViewRepresentable, MapViewShared {
     func makeUIView(context: Context) -> MKMapView {
         let mapView = MKMapView()
         mapView.delegate = context.coordinator
-        mapView.showsUserLocation = false
+        
+        // Only show user location if permission is granted
+        mapView.showsUserLocation = settings.userLocationEnabled && 
+            (CLLocationManager().authorizationStatus == .authorizedWhenInUse || 
+             CLLocationManager().authorizationStatus == .authorizedAlways)
+        
+        // Disable the built-in tracking button since we're adding our own
+        mapView.showsUserTrackingButton = false
+        
+        // Initialize location controls - they will be managed dynamically in updateUIView
+        context.coordinator.setupLocationControls(mapView: mapView, enabled: settings.userLocationEnabled)
+        
+        // Store reference to the mapView in the coordinator for permission handling
+        context.coordinator.mapView = mapView
         
         // Store if this is initial load to perform delayed zoom in
         context.coordinator.isInitialLoad = true
@@ -175,6 +189,14 @@ struct MapView: UIViewRepresentable, MapViewShared {
         #else
         mapView.mapType = settings.mapStyle.mapType
         #endif
+        
+        // Update user location visibility based on settings and permissions
+        let authStatus = CLLocationManager().authorizationStatus
+        mapView.showsUserLocation = settings.userLocationEnabled && 
+            (authStatus == .authorizedWhenInUse || authStatus == .authorizedAlways)
+        
+        // Dynamically manage location controls based on settings
+        context.coordinator.setupLocationControls(mapView: mapView, enabled: settings.userLocationEnabled)
 
         // Always update when this method is called to ensure visibility changes are reflected
         // This handles both segment count changes and visibility toggling
@@ -421,6 +443,18 @@ struct MapView: UIViewRepresentable, MapViewShared {
 }
 
 extension Coordinator {
+    // Handle user location updates by implementing the MKMapViewDelegate method
+    func mapView(_ mapView: MKMapView, didUpdate userLocation: MKUserLocation) {
+        // This is called when the user's location updates
+        // When in user tracking mode, the map will automatically move with the user
+        print("User location updated: \(userLocation.coordinate.latitude), \(userLocation.coordinate.longitude)")
+    }
+    
+    // Handle changes to user tracking mode
+    func mapView(_ mapView: MKMapView, didChange mode: MKUserTrackingMode, animated: Bool) {
+        print("User tracking mode changed to: \(mode.rawValue)")
+    }
+    
     // Perform a delayed zoom for initial load (iOS only)
     func performDelayedZoom(mapView: MKMapView, locations: [CLLocation]) {
         // Cancel any existing timer

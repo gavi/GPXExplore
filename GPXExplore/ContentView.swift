@@ -224,7 +224,7 @@ struct ContentView: View {
                             }
                         }
                         
-                        
+                        // Location button removed - now using MapKit's built-in user location tracking
                         
                         // Tracks drawer toggle
                         ToolbarItem(placement: .automatic) {
@@ -280,6 +280,15 @@ struct ContentView: View {
         #if os(iOS)
         .navigationTitle(documentTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            updateDocumentTitle()
+            updateFromDocument()
+        }
+        // Check for changes to the GPX file
+        .onChange(of: document.gpxFile?.filename) { oldValue, newValue in
+            updateDocumentTitle()
+        }
+        #elseif os(macOS)
         .onAppear {
             updateDocumentTitle()
             updateFromDocument()

@@ -55,7 +55,15 @@ struct MapView: NSViewRepresentable, MapViewShared {
     func makeNSView(context: Context) -> MKMapView {
         let mapView = MKMapView()
         mapView.delegate = context.coordinator
-        mapView.showsUserLocation = false
+        mapView.showsUserLocation = settings.userLocationEnabled
+        
+        // Set up compass and other controls
+        if #available(macOS 11.0, *) {
+            mapView.showsCompass = true
+            mapView.showsZoomControls = true
+            // On macOS, we don't have a standard user tracking button,
+            // but we can add one via MKCompassButton when needed
+        }
         
         #if swift(>=5.7)
         if #available(macOS 13.0, *) {
@@ -169,6 +177,10 @@ struct MapView: NSViewRepresentable, MapViewShared {
         #else
         mapView.mapType = settings.mapStyle.mapType
         #endif
+        
+        // Update user location visibility based on settings
+        mapView.showsUserLocation = settings.userLocationEnabled
+        
 
         // Always update when this method is called to ensure visibility changes are reflected
         // This handles both segment count changes and visibility toggling
@@ -409,6 +421,7 @@ struct MapView: NSViewRepresentable, MapViewShared {
 }
 
 extension Coordinator {
+    
     // Handle the click for the copy button on macOS
     func mapView(_ mapView: MKMapView, annotationView view: MKAnnotationView, calloutAccessoryControlTapped control: NSControl) {
         print("Copy button tapped in callout (macOS)")

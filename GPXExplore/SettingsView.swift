@@ -40,15 +40,27 @@ struct SettingsView: View {
                 
                 // Map section
                 GroupBox(label: Text("Map").font(.headline)) {
-                    VStack(alignment: .leading) {
-                        Text("Map Style")
-                            .padding(.top, 8)
-                        Picker("Map Style", selection: $settings.mapStyle) {
-                            ForEach(MapStyle.allCases) { style in
-                                Text(style.rawValue).tag(style)
+                    VStack(alignment: .leading, spacing: 16) {
+                        VStack(alignment: .leading) {
+                            Text("Map Style")
+                                .padding(.top, 8)
+                            Picker("Map Style", selection: $settings.mapStyle) {
+                                ForEach(MapStyle.allCases) { style in
+                                    Text(style.rawValue).tag(style)
+                                }
                             }
+                            .pickerStyle(SegmentedPickerStyle())
                         }
-                        .pickerStyle(SegmentedPickerStyle())
+                        
+                        Divider()
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Toggle("Show My Location", isOn: $settings.userLocationEnabled)
+                            
+                            Text("Shows your current location on the map when enabled")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
                 
@@ -165,6 +177,12 @@ struct SettingsView: View {
                     }
                 }
                 .pickerStyle(SegmentedPickerStyle())
+                
+                Toggle("Show My Location", isOn: $settings.userLocationEnabled)
+                
+                Text("Shows your current location on the map when enabled")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
             
             Section(header: Text("Elevation Visualization")) {

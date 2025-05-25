@@ -294,11 +294,10 @@ struct OptimizedElevationChartView: View {
     var zoomRange: ClosedRange<Double>? = nil
 
     // State for chart selection and interaction
-    @State private var selectedDistance: Double? = nil
+    @State private var selectedPoint: ElevationOverlay.ElevationPoint? = nil
     @State private var isDragging: Bool = false
     @State private var dragStart: Double? = nil
     @State private var dragEnd: Double? = nil
-    @State private var lastSelectedIndex: Int? = nil
 
     // Get y scale domain
     private var yScaleDomain: ClosedRange<Double> {
@@ -308,57 +307,24 @@ struct OptimizedElevationChartView: View {
     // Performance optimization state
     @State private var lastHoverTime: Date = Date.distantPast
     @State private var throttleInterval: TimeInterval = 0.05 // 50ms throttle
-    @State private var lastHoverLocation: CGPoint = .zero
 
-    // Find point at a chart position using ChartProxy (directly gets the index)
-    private func findPointAt(position: CGPoint, proxy: ChartProxy) -> (point: ElevationOverlay.ElevationPoint, index: Int)? {
-        // Throttle hover events for large datasets
-        let now = Date()
-//        if points.count > 1000 && // Only throttle for large datasets
-//           now.timeIntervalSince(lastHoverTime) < throttleInterval &&
-//           abs(position.x - lastHoverLocation.x) < 5.0 {
-//            // Skip processing if we just processed a nearby point recently
-//            return nil
-//        }
-
-        // Update hover tracking
-        lastHoverTime = now
-        lastHoverLocation = position
-
-        // Convert x-position to distance value using ChartProxy
-        guard let distance = proxy.value(atX: position.x, as: Double.self),
-              !points.isEmpty else { return nil }
-
-        // Fast approximation for very large datasets (10000+ points)
-        if points.count > 5000 && !isDragging {
-            // O(1) direct index calculation for extremely large datasets
-            let totalDistance = points.last!.distance - points.first!.distance
-            let normalizedPosition = min(1.0, max(0.0,
-                                           (distance - points.first!.distance) / totalDistance))
-            let index = min(points.count - 1, max(0, Int(normalizedPosition * Double(points.count - 1))))
-            return (points[index], points[index].index)
-        }
-
-        // Binary search to find the closest point to this distance
-        // This is much more efficient than linear search for large datasets
-
+    // Find the closest point to a given distance value
+    private func findClosestPoint(to distance: Double) -> ElevationOverlay.ElevationPoint? {
+        guard !points.isEmpty else { return nil }
+        
         // Handle edge cases
-        if points.count <= 1 {
-            return points.isEmpty ? nil : (points[0], points[0].index)
-        }
-
         if distance <= points.first!.distance {
-            return (points.first!, points.first!.index)
+            return points.first!
         }
-
+        
         if distance >= points.last!.distance {
-            return (points.last!, points.last!.index)
+            return points.last!
         }
-
-        // Binary search for the two points that bracket this distance
+        
+        // Binary search for the closest point
         var low = 0
         var high = points.count - 1
-
+        
         while high - low > 1 {
             let mid = (low + high) / 2
             if points[mid].distance < distance {
@@ -367,14 +333,12 @@ struct OptimizedElevationChartView: View {
                 high = mid
             }
         }
-
-        // Determine which of the two bracketing points is closer
+        
+        // Return the closer of the two bracketing points
         let distLow = abs(points[low].distance - distance)
         let distHigh = abs(points[high].distance - distance)
-
-        return distLow < distHigh
-            ? (points[low], points[low].index)
-            : (points[high], points[high].index)
+        
+        return distLow < distHigh ? points[low] : points[high]
     }
 
     var body: some View {
@@ -415,35 +379,29 @@ struct OptimizedElevationChartView: View {
             }
 
             // Highlight selected point with a marker
-            if let distance = selectedDistance {
-                // Find the point for the UI - already optimized since we're only doing this for display
-                if let selectedPoint = points.first(where: {
-                    // Use approximate equality to handle small floating point differences
-                    abs($0.distance - distance) < 0.00001
-                }) ?? points.first(where: { $0.distance > distance }) {
+            if let selectedPoint = selectedPoint {
+                // Selection indicator rule
+                RuleMark(
+                    x: .value("Selected", selectedPoint.distance)
+                )
+                .foregroundStyle(Color.gray.opacity(0.3))
+                .zIndex(-1)
 
-                    // Selection indicator rule
-                    RuleMark(
-                        x: .value("Selected", selectedPoint.distance)
-                    )
-                    .foregroundStyle(Color.gray.opacity(0.3))
-                    .zIndex(-1)
+                // Show point marker - white background
+                PointMark(
+                    x: .value("Distance", selectedPoint.distance),
+                    y: .value("Elevation", selectedPoint.elevation)
+                )
+                .foregroundStyle(Color.white)
+                .symbolSize(150)
 
-                    // Show point marker
-                    PointMark(
-                        x: .value("Distance", selectedPoint.distance),
-                        y: .value("Elevation", selectedPoint.elevation)
-                    )
-                    .foregroundStyle(Color.white)
-                    .symbolSize(150)
-
-                    PointMark(
-                        x: .value("Distance", selectedPoint.distance),
-                        y: .value("Elevation", selectedPoint.elevation)
-                    )
-                    .foregroundStyle(Color.red)
-                    .symbolSize(100)
-                }
+                // Show point marker - red foreground
+                PointMark(
+                    x: .value("Distance", selectedPoint.distance),
+                    y: .value("Elevation", selectedPoint.elevation)
+                )
+                .foregroundStyle(Color.red)
+                .symbolSize(100)
             }
 
             // Show drag selection area
@@ -494,19 +452,17 @@ struct OptimizedElevationChartView: View {
                     .gesture(
                         DragGesture(minimumDistance: 0)
                             .onChanged { value in
-                                // Always use for hover only - no zoom
-                                selectedDistance = nil
-
-                                // Use drag location for hover effect
-                                if let (point, index) = findPointAt(position: value.location, proxy: proxy) {
-                                    // Update UI with point position
-                                    selectedDistance = point.distance
-                                    // Report the point's index directly to parent
-                                    onHover?(index)
+                                // Convert x-position to distance value using ChartProxy
+                                if let distance = proxy.value(atX: value.location.x, as: Double.self) {
+                                    // Find the closest point to this distance
+                                    if let closestPoint = findClosestPoint(to: distance) {
+                                        selectedPoint = closestPoint
+                                        onHover?(closestPoint.index)
+                                    }
                                 }
                             }
                             .onEnded { _ in
-                                // Keep selectedDistance to maintain the RuleMark
+                                // Keep selectedPoint to maintain the visual marker
                                 // Just notify parent that hover ended
                                 onHover?(nil)
                             }
@@ -515,7 +471,7 @@ struct OptimizedElevationChartView: View {
                     // macOS hover handling
                     .onHover { hovering in
                         if !hovering && !isDragging {
-                            // Keep selectedDistance to maintain the RuleMark
+                            // Keep selectedPoint to maintain the visual marker
                             // Just notify parent that hover ended
                             onHover?(nil)
                         }
@@ -524,17 +480,18 @@ struct OptimizedElevationChartView: View {
                         switch phase {
                         case .active(let location):
                             if !isDragging {
-                                // Use our optimized point finding with index
-                                if let (point, index) = findPointAt(position: location, proxy: proxy) {
-                                    // Update UI with point position
-                                    selectedDistance = point.distance
-                                    // Report the point's index directly to parent
-                                    onHover?(index)
+                                // Convert x-position to distance value using ChartProxy
+                                if let distance = proxy.value(atX: location.x, as: Double.self) {
+                                    // Find the closest point to this distance
+                                    if let closestPoint = findClosestPoint(to: distance) {
+                                        selectedPoint = closestPoint
+                                        onHover?(closestPoint.index)
+                                    }
                                 }
                             }
                         case .ended:
                             if !isDragging {
-                                // Keep selectedDistance to maintain the RuleMark
+                                // Keep selectedPoint to maintain the visual marker
                                 // Just notify parent that hover ended
                                 onHover?(nil)
                             }
@@ -573,9 +530,8 @@ struct OptimizedElevationChartView: View {
                     #endif
             }
         }
-        // Double tap/click gesture is sufficient since we integrated drag into the overlay
         // Double tap/click to reset zoom (works on both platforms)
-        .gesture(
+        .gesture(   
             TapGesture(count: 2)
                 .onEnded {
                     // Double tap resets zoom
