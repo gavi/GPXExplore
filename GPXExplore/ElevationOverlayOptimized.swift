@@ -294,159 +294,114 @@ struct OptimizedElevationChartView: View {
     var zoomRange: ClosedRange<Double>? = nil
 
     // State for chart selection and interaction
-    @State private var selectedDistance: Double? = nil
+    @State private var selectedPoint: ElevationOverlay.ElevationPoint? = nil
     @State private var isDragging: Bool = false
     @State private var dragStart: Double? = nil
     @State private var dragEnd: Double? = nil
-    
-    // Debounced hover state
-    @State private var pendingHoverIndex: Int? = nil
-    @State private var hoverDebounceTimer: Timer? = nil
 
     // Get y scale domain
     private var yScaleDomain: ClosedRange<Double> {
         (minValue * 0.95)...(maxValue * 1.05)
     }
-    
-    // Precompute data for efficient rendering
-    private var chartData: (lineData: [(x: Double, y: Double, originalIndex: Int)], areaPath: Path) {
-        // For very large datasets, use a simplified representation
-        let useSimplified = points.count > 1000
-        let step = useSimplified ? max(1, points.count / 500) : 1
-        
-        var linePoints: [(x: Double, y: Double, originalIndex: Int)] = []
-        linePoints.reserveCapacity(points.count / step + 1)
-        
-        for i in stride(from: 0, to: points.count, by: step) {
-            linePoints.append((x: points[i].distance, y: points[i].elevation, originalIndex: i))
-        }
-        
-        // Always include the last point
-        if !points.isEmpty && (points.count - 1) % step != 0 {
-            let last = points.last!
-            linePoints.append((x: last.distance, y: last.elevation, originalIndex: points.count - 1))
-        }
-        
-        // Create area path for fill
-        var path = Path()
-        if !linePoints.isEmpty {
-            path.move(to: CGPoint(x: linePoints[0].x, y: minValue * 0.95))
-            for point in linePoints {
-                path.addLine(to: CGPoint(x: point.x, y: point.y))
-            }
-            if let last = linePoints.last {
-                path.addLine(to: CGPoint(x: last.x, y: minValue * 0.95))
-            }
-            path.closeSubpath()
-        }
-        
-        return (linePoints, path)
-    }
 
-    // Optimized binary search with caching
-    private func findClosestPoint(to distance: Double) -> (point: ElevationOverlay.ElevationPoint, index: Int)? {
+    // Performance optimization state
+    @State private var lastHoverTime: Date = Date.distantPast
+    @State private var throttleInterval: TimeInterval = 0.05 // 50ms throttle
+
+    // Find the closest point to a given distance value
+    private func findClosestPoint(to distance: Double) -> ElevationOverlay.ElevationPoint? {
         guard !points.isEmpty else { return nil }
         
-        // Edge cases
-        if points.count == 1 { return (points[0], 0) }
-        if distance <= points.first!.distance { return (points.first!, 0) }
-        if distance >= points.last!.distance { return (points.last!, points.last!.index) }
+        // Handle edge cases
+        if distance <= points.first!.distance {
+            return points.first!
+        }
         
-        // Binary search
-        var left = 0
-        var right = points.count - 1
+        if distance >= points.last!.distance {
+            return points.last!
+        }
         
-        while left < right - 1 {
-            let mid = (left + right) / 2
+        // Binary search for the closest point
+        var low = 0
+        var high = points.count - 1
+        
+        while high - low > 1 {
+            let mid = (low + high) / 2
             if points[mid].distance < distance {
-                left = mid
+                low = mid
             } else {
-                right = mid
+                high = mid
             }
         }
         
-        // Find closest point
-        let leftDist = abs(points[left].distance - distance)
-        let rightDist = abs(points[right].distance - distance)
+        // Return the closer of the two bracketing points
+        let distLow = abs(points[low].distance - distance)
+        let distHigh = abs(points[high].distance - distance)
         
-        return leftDist < rightDist ? (points[left], left) : (points[right], right)
-    }
-    
-    // Debounced hover handler
-    private func handleHover(_ index: Int?) {
-        // Cancel existing timer
-        hoverDebounceTimer?.invalidate()
-        
-        // For nil (hover end), update immediately
-        if index == nil {
-            onHover?(nil)
-            pendingHoverIndex = nil
-            return
-        }
-        
-        // For hover updates, debounce
-        pendingHoverIndex = index
-        hoverDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: false) { _ in
-            if let pending = pendingHoverIndex {
-                onHover?(pending)
-            }
-        }
-    }
-
-    // Add this function before the body property
-    private func interpolateElevation(for distance: Double, in lineData: [(x: Double, y: Double, originalIndex: Int)]) -> Double {
-        guard lineData.count > 1 else {
-            return findClosestPoint(to: distance)?.point.elevation ?? 0
-        }
-        
-        var leftPoint: (x: Double, y: Double, originalIndex: Int)? = nil
-        var rightPoint: (x: Double, y: Double, originalIndex: Int)? = nil
-        
-        for i in 0..<lineData.count {
-            if lineData[i].x <= distance {
-                leftPoint = lineData[i]
-            }
-            if lineData[i].x >= distance && rightPoint == nil {
-                rightPoint = lineData[i]
-                break
-            }
-        }
-        
-        if let left = leftPoint, let right = rightPoint, left.x != right.x {
-            let ratio = (distance - left.x) / (right.x - left.x)
-            return left.y + (right.y - left.y) * ratio
-        } else if let left = leftPoint {
-            return left.y
-        } else if let right = rightPoint {
-            return right.y
-        } else {
-            return findClosestPoint(to: distance)?.point.elevation ?? 0
-        }
+        return distLow < distHigh ? points[low] : points[high]
     }
 
     var body: some View {
-        let data = chartData
-        
         Chart {
-            // Use a single LineMark with all points instead of ForEach
-            // This is MUCH more efficient for large datasets
-            LineMark(
-                x: .value("Distance", 0),
-                y: .value("Elevation", 0),
-                series: .value("Series", "elevation")
-            )
-            .foregroundStyle(.clear) // Invisible mark to establish chart
-            
+            // Area under the line
+            ForEach(points) { point in
+                AreaMark(
+                    x: .value("Distance", point.distance),
+                    y: .value("Elevation", point.elevation)
+                )
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [
+                            Color.blue.opacity(0.3),
+                            Color.green.opacity(0.3),
+                            Color.red.opacity(0.3)
+                        ],
+                        startPoint: .bottom,
+                        endPoint: .top
+                    )
+                )
+            }
+
+            // The elevation line
+            ForEach(points) { point in
+                LineMark(
+                    x: .value("Distance", point.distance),
+                    y: .value("Elevation", point.elevation)
+                )
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color.blue, Color.green, Color.red],
+                        startPoint: .bottom,
+                        endPoint: .top
+                    )
+                )
+                .lineStyle(StrokeStyle(lineWidth: 2))
+            }
+
             // Highlight selected point with a marker
-            if let distance = selectedDistance,
-               let (selectedPoint, _) = findClosestPoint(to: distance) {
-                
+            if let selectedPoint = selectedPoint {
                 // Selection indicator rule
                 RuleMark(
                     x: .value("Selected", selectedPoint.distance)
                 )
                 .foregroundStyle(Color.gray.opacity(0.3))
                 .zIndex(-1)
+
+                // Show point marker - white background
+                PointMark(
+                    x: .value("Distance", selectedPoint.distance),
+                    y: .value("Elevation", selectedPoint.elevation)
+                )
+                .foregroundStyle(Color.white)
+                .symbolSize(150)
+
+                // Show point marker - red foreground
+                PointMark(
+                    x: .value("Distance", selectedPoint.distance),
+                    y: .value("Elevation", selectedPoint.elevation)
+                )
+                .foregroundStyle(Color.red)
+                .symbolSize(100)
             }
 
             // Show drag selection area
@@ -486,90 +441,7 @@ struct OptimizedElevationChartView: View {
                 }
             }
         }
-        // Custom background to render the elevation profile efficiently
-        .chartBackground { chartProxy in
-            GeometryReader { geometry in
-                // Convert chart coordinates to view coordinates
-                let xScale = { (distance: Double) -> CGFloat in
-                    let xRange = zoomRange ?? (points.first?.distance ?? 0)...(points.last?.distance ?? 1)
-                    let normalized = (distance - xRange.lowerBound) / (xRange.upperBound - xRange.lowerBound)
-                    return geometry.size.width * CGFloat(normalized)
-                }
-                
-                let yScale = { (elevation: Double) -> CGFloat in
-                    let normalized = (elevation - yScaleDomain.lowerBound) / (yScaleDomain.upperBound - yScaleDomain.lowerBound)
-                    return geometry.size.height * (1.0 - CGFloat(normalized))
-                }
-                
-                // Draw area fill
-                Path { path in
-                    guard !data.lineData.isEmpty else { return }
-                    
-                    path.move(to: CGPoint(x: xScale(data.lineData[0].x), y: yScale(minValue * 0.95)))
-                    for point in data.lineData {
-                        path.addLine(to: CGPoint(x: xScale(point.x), y: yScale(point.y)))
-                    }
-                    if let last = data.lineData.last {
-                        path.addLine(to: CGPoint(x: xScale(last.x), y: yScale(minValue * 0.95)))
-                    }
-                    path.closeSubpath()
-                }
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.blue.opacity(0.3),
-                            Color.green.opacity(0.3),
-                            Color.red.opacity(0.3)
-                        ],
-                        startPoint: .bottom,
-                        endPoint: .top
-                    )
-                )
-                
-                // Draw line
-                Path { path in
-                    guard !data.lineData.isEmpty else { return }
-                    
-                    path.move(to: CGPoint(x: xScale(data.lineData[0].x), y: yScale(data.lineData[0].y)))
-                    for point in data.lineData.dropFirst() {
-                        path.addLine(to: CGPoint(x: xScale(point.x), y: yScale(point.y)))
-                    }
-                }
-                .stroke(
-                    LinearGradient(
-                        colors: [Color.blue, Color.green, Color.red],
-                        startPoint: .bottom,
-                        endPoint: .top
-                    ),
-                    lineWidth: 2
-                )
-                
-                // Draw hover point directly on the line
-                if let distance = selectedDistance,
-                   let (selectedPoint, _) = findClosestPoint(to: distance) {
-                    
-                    // For simplified line data, find the actual elevation at this distance
-                    // by interpolating between the nearest line segments
-                    let xPos = xScale(selectedPoint.distance)
-                    
-                    let actualElevation = interpolateElevation(for: selectedPoint.distance, in: data.lineData)
-                    let yPos = yScale(actualElevation)
-                    
-                    // Outer white circle
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: 12, height: 12)
-                        .position(x: xPos, y: yPos)
-                    
-                    // Inner red circle
-                    Circle()
-                        .fill(Color.red)
-                        .frame(width: 8, height: 8)
-                        .position(x: xPos, y: yPos)
-                }
-            }
-        }
-        // Use chart overlay for interactions
+        // Use chart overlay for more precise hover control
         .chartOverlay { proxy in
             GeometryReader { geometry in
                 Rectangle()
@@ -580,54 +452,67 @@ struct OptimizedElevationChartView: View {
                     .gesture(
                         DragGesture(minimumDistance: 0)
                             .onChanged { value in
-                                selectedDistance = nil
-
-                                // Use drag location for hover effect
-                                if let distance = proxy.value(atX: value.location.x, as: Double.self),
-                                   let (point, _) = findClosestPoint(to: distance) {
-                                    selectedDistance = point.distance
-                                    handleHover(point.index)
+                                // Convert x-position to distance value using ChartProxy
+                                if let distance = proxy.value(atX: value.location.x, as: Double.self) {
+                                    // Find the closest point to this distance
+                                    if let closestPoint = findClosestPoint(to: distance) {
+                                        selectedPoint = closestPoint
+                                        onHover?(closestPoint.index)
+                                    }
                                 }
                             }
                             .onEnded { _ in
-                                handleHover(nil)
+                                // Keep selectedPoint to maintain the visual marker
+                                // Just notify parent that hover ended
+                                onHover?(nil)
                             }
                     )
                     #elseif os(macOS)
                     // macOS hover handling
                     .onHover { hovering in
                         if !hovering && !isDragging {
-                            handleHover(nil)
+                            // Keep selectedPoint to maintain the visual marker
+                            // Just notify parent that hover ended
+                            onHover?(nil)
                         }
                     }
                     .onContinuousHover { phase in
                         switch phase {
                         case .active(let location):
                             if !isDragging {
-                                if let distance = proxy.value(atX: location.x, as: Double.self),
-                                   let (point, _) = findClosestPoint(to: distance) {
-                                    selectedDistance = point.distance
-                                    handleHover(point.index)
+                                // Convert x-position to distance value using ChartProxy
+                                if let distance = proxy.value(atX: location.x, as: Double.self) {
+                                    // Find the closest point to this distance
+                                    if let closestPoint = findClosestPoint(to: distance) {
+                                        selectedPoint = closestPoint
+                                        onHover?(closestPoint.index)
+                                    }
                                 }
                             }
                         case .ended:
                             if !isDragging {
-                                handleHover(nil)
+                                // Keep selectedPoint to maintain the visual marker
+                                // Just notify parent that hover ended
+                                onHover?(nil)
                             }
                         }
                     }
                     // Add combined drag gesture for direct selection
                     .gesture(
-                        DragGesture(minimumDistance: 3)
+                        DragGesture(minimumDistance: 3) // Small threshold for macOS
                             .onChanged { value in
+                                // Start dragging immediately - macOS has better hover separation
                                 if !isDragging {
                                     isDragging = true
                                     dragStart = proxy.value(atX: value.startLocation.x, as: Double.self)
                                 }
+
+                                // Update end position
                                 dragEnd = proxy.value(atX: value.location.x, as: Double.self)
                             }
                             .onEnded { _ in
                                 if let start = dragStart, let end = dragEnd, isDragging {
+                                    // Only trigger zoom if selection has meaningful width
                                     if abs(end - start) > 0.05 {
                                         onDragSelection?(
                                             min(start, end),
@@ -635,6 +520,8 @@ struct OptimizedElevationChartView: View {
                                         )
                                     }
                                 }
+
+                                // Reset state
                                 isDragging = false
                                 dragStart = nil
                                 dragEnd = nil
@@ -643,16 +530,13 @@ struct OptimizedElevationChartView: View {
                     #endif
             }
         }
-        // Double tap/click to reset zoom
-        .gesture(
+        // Double tap/click to reset zoom (works on both platforms)
+        .gesture(   
             TapGesture(count: 2)
                 .onEnded {
+                    // Double tap resets zoom
                     onDragSelection?(0, 0)
                 }
         )
-        .onDisappear {
-            // Clean up timer when view disappears
-            hoverDebounceTimer?.invalidate()
-        }
     }
 }
