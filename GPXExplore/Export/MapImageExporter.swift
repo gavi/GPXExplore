@@ -36,6 +36,12 @@ enum MapImageExporter {
         #endif
         snapOptions.preferredConfiguration = options.mapStyle.mapConfiguration
         snapOptions.showsBuildings = false
+        // Always a light map: the picture goes to other people, not to this screen's appearance
+        #if os(iOS)
+        snapOptions.traitCollection = UITraitCollection(userInterfaceStyle: .light)
+        #elseif os(macOS)
+        snapOptions.appearance = NSAppearance(named: .aqua)
+        #endif
 
         let snapshot = try await MKMapSnapshotter(options: snapOptions).start()
 
@@ -61,6 +67,14 @@ enum MapImageExporter {
         // Tracks, in the current colouring
         ctx.saveGState()
         ctx.translateBy(x: 0, y: CGFloat(chartHeightPx + headerHeight))
+        // Snapshot points: top-left origin on iOS (flip into CG space), bottom-left already on macOS
+        func cg(_ p: CGPoint) -> CGPoint {
+            #if os(iOS)
+            return CGPoint(x: p.x * scale, y: (options.size.height - p.y) * scale)
+            #else
+            return CGPoint(x: p.x * scale, y: p.y * scale)
+            #endif
+        }
         ctx.setLineWidth(options.lineWidth * scale)
         ctx.setLineCap(.round); ctx.setLineJoin(.round)
         let minE = stats.minElevation ?? 0, maxE = stats.maxElevation ?? 0
@@ -79,17 +93,15 @@ enum MapImageExporter {
                 }
                 ctx.setStrokeColor(TrackColors.cgColor(rgb))
                 ctx.beginPath()
-                // snapshot points are in image points with top-left origin; flip into this context
-                ctx.move(to: CGPoint(x: pts[i].x * scale, y: (options.size.height - pts[i].y) * scale))
-                ctx.addLine(to: CGPoint(x: pts[i + 1].x * scale, y: (options.size.height - pts[i + 1].y) * scale))
+                ctx.move(to: cg(pts[i]))
+                ctx.addLine(to: cg(pts[i + 1]))
                 ctx.strokePath()
             }
         }
         // Start and end dots
         if let first = locations.first, let last = locations.last {
             for (loc, color) in [(first, CGColor(red: 0.2, green: 0.75, blue: 0.3, alpha: 1)), (last, CGColor(red: 0.9, green: 0.2, blue: 0.2, alpha: 1))] {
-                let p = snapshot.point(for: loc.coordinate)
-                let c = CGPoint(x: p.x * scale, y: (options.size.height - p.y) * scale)
+                let c = cg(snapshot.point(for: loc.coordinate))
                 let r = 7 * scale
                 ctx.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 1)); ctx.fillEllipse(in: CGRect(x: c.x - r - 2 * scale, y: c.y - r - 2 * scale, width: 2 * r + 4 * scale, height: 2 * r + 4 * scale))
                 ctx.setFillColor(color); ctx.fillEllipse(in: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r))
