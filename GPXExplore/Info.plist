@@ -5,8 +5,6 @@
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
-			<key>CFBundleTypeIconFile</key>
-			<string>GPXDocumentIcon</string>
 			<key>CFBundleTypeName</key>
 			<string>GPS Exchange Format</string>
 			<key>CFBundleTypeRole</key>
@@ -23,6 +21,8 @@
 			<string>GPXExploreDocument</string>
 			<key>NSUbiquitousDocumentUserActivityType</key>
 			<string>$(PRODUCT_BUNDLE_IDENTIFIER).gpxdocument</string>
+			<key>CFBundleTypeIconSystemGenerated</key>
+			<true/>
 		</dict>
 	</array>
 	<key>CFBundleURLTypes</key>
@@ -112,10 +112,6 @@
 			</array>
 			<key>UTTypeDescription</key>
 			<string>GPS Exchange Format (GPX)</string>
-			<key>UTTypeIconFiles</key>
-			<array>
-				<string>GPXDocumentIcon.icns</string>
-			</array>
 			<key>UTTypeIdentifier</key>
 			<string>com.topografix.gpx</string>
 			<key>UTTypeTagSpecification</key>
@@ -128,6 +124,11 @@
 				<array>
 					<string>application/gpx+xml</string>
 				</array>
+			</dict>
+			<key>UTTypeIcons</key>
+			<dict>
+				<key>UTTypeIconText</key>
+				<string>gpx</string>
 			</dict>
 		</dict>
 	</array>

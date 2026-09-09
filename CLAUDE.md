@@ -56,20 +56,8 @@ store notes; read it first.
   frame is then autosaved and restored (`GPXExploreDocumentWindow`).
 - Settings are `UserDefaults`-backed in `SettingsModel`; the map renderers also read the
   visualization mode and line width straight from `UserDefaults`.
-- **Document type** (`GPXExplore/Info.plist`): exports `com.topografix.gpx` and claims it as
-  Owner with `GPXDocumentIcon.icns` (a loose resource; source art in `Design/`, rebuild with
-  `iconutil -c icns Design/GPXDocumentIcon.iconset`). Do not put an `.iconset` in the asset
-  catalog (it is ignored) and do not claim `public.xml`.
-
-## Code Style Guidelines
-- **Imports**: Group imports by framework (SwiftUI, MapKit, etc.) with Foundation first
-- **Formatting**: Use 4-space indentation, avoid trailing whitespace
-- **Types**: Use Swift's type inference where appropriate, specify types for public APIs
-- **Naming**: Follow Apple's API Design Guidelines (camelCase for properties/methods, TitleCase for types)
-- **Error Handling**: Use appropriate error handling with do/catch blocks and meaningful error messaging
-- **Comments**: Say why, not what; keep the parser's element rules commented
-- **Access Control**: Restrict access to implementation details with private/fileprivate
-- **Extensions**: Prefer extensions to organize functionality by purpose
-- **Environment Handling**: Use `#if` conditional compilation for platform-specific code
-- **Xcode Cloud** builds every push to `main` with an older Xcode than this Mac: keep arithmetic
-  explicitly typed and gate anything newer than iOS 17.6 / macOS 14.6 with `#available`.
+- **Icons**: `GPXExplore/AppIcon.icon` (Icon Composer, macOS/iOS 26+; two raster layers from
+  the 1024 art) beside `AppIcon.appiconset` (older systems), same name. The GPX document icon
+  is system-generated from the app icon (`CFBundleTypeIconSystemGenerated`); do not name an
+  icon file the bundle does not carry, and do not put an `.iconset` in the asset catalog. The
+  document type claims `com.topografix.gpx` only, never `public.xml`. Source art in `Design/`.

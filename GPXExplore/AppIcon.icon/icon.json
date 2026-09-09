@@ -1,0 +1,51 @@
+{
+  "fill": {
+    "linear-gradient": [
+      "extended-srgb:0.98431,0.91765,0.78824,1.00000",
+      "extended-srgb:0.98431,0.91765,0.78824,1.00000"
+    ]
+  },
+  "groups": [
+    {
+      "layers": [
+        {
+          "glass": true,
+          "image-name": "band.png",
+          "name": "band"
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "specular": true,
+      "translucency": {
+        "enabled": true,
+        "value": 0.35
+      }
+    },
+    {
+      "layers": [
+        {
+          "glass": false,
+          "image-name": "map.png",
+          "name": "map"
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": false,
+        "value": 0
+      }
+    }
+  ],
+  "supported-platforms": {
+    "circles": [
+      "watchOS"
+    ],
+    "squares": "shared"
+  }
+}
