@@ -61,9 +61,9 @@ class PreviewViewController: NSViewController, QLPreviewingController {
         // Parse the GPX file using existing GPXParser
         let gpxFile = GPXParser.parseGPXFile(at: url)
         
-        // Ensure we have tracks to display
-        guard !gpxFile.tracks.isEmpty else {
-            statsLabel.stringValue = "No tracks found in GPX file"
+        // A file with only waypoints is still a preview
+        guard !gpxFile.tracks.isEmpty || !gpxFile.waypoints.isEmpty else {
+            statsLabel.stringValue = "No tracks or waypoints found in GPX file"
             return
         }
         
@@ -78,10 +78,12 @@ class PreviewViewController: NSViewController, QLPreviewingController {
             
             allLocations.append(contentsOf: locations)
             
-            // Create simple polyline for the segment - make it thicker to be more visible
-            let coordinates = locations.map { $0.coordinate }
-            let polyline = MKPolyline(coordinates: coordinates, count: coordinates.count)
-            mapView.addOverlay(polyline)
+            // One polyline per run of equal grade colour, so the preview matches the app
+            for run in GradedRun.runs(for: locations) {
+                let polyline = ColoredPolyline(coordinates: run.coordinates, count: run.coordinates.count)
+                polyline.color = run.color
+                mapView.addOverlay(polyline)
+            }
         }
         
         // Add basic waypoints if any
@@ -93,6 +95,9 @@ class PreviewViewController: NSViewController, QLPreviewingController {
                 return annotation
             }
             mapView.addAnnotations(waypoints)
+            if allLocations.isEmpty {
+                allLocations = gpxFile.waypoints.map { CLLocation(latitude: $0.coordinate.latitude, longitude: $0.coordinate.longitude) }
+            }
         }
         
         // Set map region to show all points
@@ -116,16 +121,20 @@ class PreviewViewController: NSViewController, QLPreviewingController {
         var totalDescent = 0.0
         var pointCount = 0
         
+        var hasElevation = false
+        var hasTime = false
         for track in gpxFile.tracks {
             let workout = track.workout
             totalDistance += workout.totalDistance
-            totalTime += workout.duration
             pointCount += track.allLocations.count
             
-            // Sum elevation changes
+            // Sum elevation changes and per-segment durations, only where the file has the data
             for segment in track.segments {
+                let timed = segment.locations.filter { $0.timestamp != gpxMissingTimestamp }.map { $0.timestamp }
+                if let a = timed.min(), let b = timed.max() { totalTime += b.timeIntervalSince(a); hasTime = true }
                 if segment.locations.count > 1 {
-                    for i in 1..<segment.locations.count {
+                    for i in 1..<segment.locations.count where segment.locations[i].verticalAccuracy >= 0 && segment.locations[i-1].verticalAccuracy >= 0 {
+                        hasElevation = true
                         let elevDiff = segment.locations[i].altitude - segment.locations[i-1].altitude
                         if elevDiff > 1.0 {
                             totalAscent += elevDiff
@@ -147,22 +156,24 @@ class PreviewViewController: NSViewController, QLPreviewingController {
         let distanceMeasurement = Measurement(value: totalDistance, unit: UnitLength.meters)
         statsText += "• Distance: \(distanceFormatter.string(from: distanceMeasurement))\n"
         
-        // Duration
+        // Duration, only when the file has timestamps
         let durationFormatter = DateComponentsFormatter()
         durationFormatter.allowedUnits = [.hour, .minute, .second]
         durationFormatter.unitsStyle = .abbreviated
-        if let formattedDuration = durationFormatter.string(from: totalTime) {
+        if hasTime, let formattedDuration = durationFormatter.string(from: totalTime) {
             statsText += "• Duration: \(formattedDuration)\n"
         }
         
-        // Elevation
-        let elevFormatter = MeasurementFormatter()
-        elevFormatter.unitOptions = .providedUnit
-        elevFormatter.numberFormatter.maximumFractionDigits = 0
-        let ascentMeasurement = Measurement(value: totalAscent, unit: UnitLength.meters)
-        let descentMeasurement = Measurement(value: totalDescent, unit: UnitLength.meters)
-        statsText += "• Elevation Gain: \(elevFormatter.string(from: ascentMeasurement))\n"
-        statsText += "• Elevation Loss: \(elevFormatter.string(from: descentMeasurement))\n"
+        // Elevation, only when the file has it
+        if hasElevation {
+            let elevFormatter = MeasurementFormatter()
+            elevFormatter.unitOptions = .providedUnit
+            elevFormatter.numberFormatter.maximumFractionDigits = 0
+            let ascentMeasurement = Measurement(value: totalAscent, unit: UnitLength.meters)
+            let descentMeasurement = Measurement(value: totalDescent, unit: UnitLength.meters)
+            statsText += "• Elevation Gain: \(elevFormatter.string(from: ascentMeasurement))\n"
+            statsText += "• Elevation Loss: \(elevFormatter.string(from: descentMeasurement))\n"
+        }
         statsText += "• Total Points: \(pointCount)"
         
         // Update stats label
@@ -216,8 +227,8 @@ extension PreviewViewController: MKMapViewDelegate {
         if let polyline = overlay as? MKPolyline {
             let renderer = MKPolylineRenderer(polyline: polyline)
             
-            // Use a bright, highly visible color for tracks that will show up on any background
-            renderer.strokeColor = NSColor.systemRed
+            // Grade colour from the run, or a flat blue when the file has no elevation
+            renderer.strokeColor = (polyline as? ColoredPolyline)?.color ?? NSColor.systemBlue
             
             // Make lines thicker to be more visible even without map tiles
             renderer.lineWidth = 5.0
@@ -263,5 +274,66 @@ extension PreviewViewController: MKMapViewDelegate {
         }
         
         return annotationView
+    }
+}
+
+// A polyline that knows its colour: one per run of points sharing a grade bucket
+final class ColoredPolyline: MKPolyline {
+    var color: NSColor = .systemBlue
+}
+
+// Grade colouring for the preview, a compact copy of the app's TrackColors/TrackGrades
+// (the extension cannot link the app target). Keep the thresholds and colours in step.
+enum GradedRun {
+    struct Run { let coordinates: [CLLocationCoordinate2D]; let color: NSColor }
+
+    static func color(forGrade g: Double) -> NSColor {
+        let c = min(max(g, -0.15), 0.15)
+        if c >= 0 {
+            if c < 0.03 { return NSColor(red: 0.0, green: 0.8, blue: 0.0, alpha: 1) }
+            if c < 0.08 { return NSColor(red: 1.0, green: 0.6, blue: 0.0, alpha: 1) }
+            return NSColor(red: 1.0, green: 0.1, blue: 0.0, alpha: 1)
+        }
+        let a = -c
+        if a < 0.03 { return NSColor(red: 0.0, green: 0.5, blue: 1.0, alpha: 1) }
+        if a < 0.08 { return NSColor(red: 0.0, green: 0.3, blue: 0.9, alpha: 1) }
+        return NSColor(red: 0.3, green: 0.0, blue: 0.8, alpha: 1)
+    }
+
+    static func runs(for locations: [CLLocation]) -> [Run] {
+        let n = locations.count
+        guard n > 1 else { return [] }
+        let hasElevation = locations.contains { $0.verticalAccuracy >= 0 }
+        guard hasElevation else { return [Run(coordinates: locations.map { $0.coordinate }, color: NSColor(red: 0.2, green: 0.45, blue: 0.95, alpha: 1))] }
+        // smooth, then windowed grade, as the app does
+        var ele = locations.map { $0.altitude }
+        if n > 3 {
+            let w = min(5, n / 20 + 2); let src = ele
+            for i in 0..<n { let lo = max(0, i - w), hi = min(n - 1, i + w); ele[i] = src[lo...hi].reduce(0, +) / Double(hi - lo + 1) }
+        }
+        var grades = Array(repeating: 0.0, count: n)
+        let window = min(5, n / 10 + 1)
+        for i in 0..<(n - 1) {
+            let lo = max(0, i - window), hi = min(n - 1, i + window)
+            guard hi > lo else { continue }
+            let dist = locations[lo].distance(from: locations[hi])
+            if dist > 5 { grades[i] = min(max((ele[hi] - ele[lo]) / dist, -0.45), 0.45) }
+        }
+        grades[n - 1] = grades[n - 2]
+        // group consecutive points by colour; each run overlaps its neighbour by one point
+        var runs: [Run] = []
+        var current: [CLLocationCoordinate2D] = [locations[0].coordinate]
+        var currentColor = color(forGrade: grades[0])
+        for i in 1..<n {
+            let c = color(forGrade: grades[i - 1])
+            if c != currentColor {
+                runs.append(Run(coordinates: current, color: currentColor))
+                current = [locations[i - 1].coordinate]
+                currentColor = c
+            }
+            current.append(locations[i].coordinate)
+        }
+        runs.append(Run(coordinates: current, color: currentColor))
+        return runs
     }
 }

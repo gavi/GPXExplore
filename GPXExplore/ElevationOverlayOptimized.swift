@@ -2,138 +2,201 @@ import SwiftUI
 import CoreLocation
 import Charts
 
+// Which series the chart shows. Elevation is the default; the others appear only when
+// the file carries them (see TrackStatistics / SensorSample).
+enum ChartMetric: String, CaseIterable, Identifiable {
+    case elevation = "Elevation"
+    case heartRate = "Heart rate"
+    case power = "Power"
+    case cadence = "Cadence"
+    case speed = "Speed"
+    case temperature = "Temperature"
+
+    var id: String { rawValue }
+
+    var systemImage: String {
+        switch self {
+        case .elevation: return "mountain.2"
+        case .heartRate: return "heart"
+        case .power: return "bolt"
+        case .cadence: return "arrow.triangle.2.circlepath"
+        case .speed: return "speedometer"
+        case .temperature: return "thermometer.medium"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .elevation: return .green
+        case .heartRate: return TrackColors.heartRate
+        case .power: return TrackColors.power
+        case .cadence: return TrackColors.cadence
+        case .speed: return TrackColors.speed
+        case .temperature: return TrackColors.temperature
+        }
+    }
+
+    // Metrics the visible segments can actually plot
+    static func available(for segments: [GPXTrackSegment], stats: TrackStatistics) -> [ChartMetric] {
+        var out: [ChartMetric] = []
+        if stats.hasElevation { out.append(.elevation) }
+        if stats.heartRate != nil { out.append(.heartRate) }
+        if stats.power != nil { out.append(.power) }
+        if stats.cadence != nil { out.append(.cadence) }
+        if stats.hasRecordedSpeed || stats.hasTimestamps { out.append(.speed) }
+        if stats.temperature != nil { out.append(.temperature) }
+        return out
+    }
+}
+
 struct ElevationOverlay: View {
     let trackSegments: [GPXTrackSegment]
+    let stats: TrackStatistics
+    @Binding var metric: ChartMetric
     @EnvironmentObject var settings: SettingsModel
-    
+
     // Binding to report the currently hovered point for map marker
     @Binding var selectedPointIndex: Int?
     @Binding var zoomRange: ClosedRange<Double>?
-    
-    // Default initializer with optional binding for hover point
-    init(trackSegments: [GPXTrackSegment], selectedPointIndex: Binding<Int?> = .constant(nil), zoomRange: Binding<ClosedRange<Double>?> = .constant(nil)) {
+
+    init(trackSegments: [GPXTrackSegment], stats: TrackStatistics, metric: Binding<ChartMetric>,
+         selectedPointIndex: Binding<Int?> = .constant(nil), zoomRange: Binding<ClosedRange<Double>?> = .constant(nil)) {
         self.trackSegments = trackSegments
+        self.stats = stats
+        self._metric = metric
         self._selectedPointIndex = selectedPointIndex
         self._zoomRange = zoomRange
     }
-    
+
     // Data structure for chart points
     struct ElevationPoint: Identifiable {
         let distance: Double
-        let elevation: Double
+        let elevation: Double     // the plotted value, in display units, whatever the metric
         let index: Int
-        let originalIndex: Int // Original index in the locations array
-        
+        let originalIndex: Int    // Original index in the flattened locations array
         var id: Int { index }
     }
-    
-    // Get the converted elevation data for display
-    private func prepareElevationData() -> (points: [ElevationPoint], min: Double, max: Double, gain: Double, locations: [CLLocation]) {
+
+    struct Series {
+        let points: [ElevationPoint]
+        let min: Double
+        let max: Double
+        let unit: String
+    }
+
+    private var useMetric: Bool { settings.useMetricSystem }
+
+    // Value of the chosen metric at a flattened location index, in display units; nil = no data there
+    private func value(at i: Int, locations: [CLLocation], samples: [SensorSample], eleValid: [Bool]) -> Double? {
+        switch metric {
+        case .elevation:
+            guard eleValid[i] else { return nil }
+            return useMetric ? locations[i].altitude : locations[i].altitude * 3.28084
+        case .heartRate: return samples[i].heartRate
+        case .power: return samples[i].power
+        case .cadence: return samples[i].cadence
+        case .temperature:
+            guard let c = samples[i].temperature else { return nil }
+            return useMetric ? c : c * 9 / 5 + 32
+        case .speed:
+            var mps = samples[i].speed
+            if mps == nil, i > 0, stats.hasTimestamps {
+                // derive from the previous point when the file did not record speed
+                let dt = locations[i].timestamp.timeIntervalSince(locations[i - 1].timestamp)
+                let dd = stats.cumulativeDistances[i] - stats.cumulativeDistances[i - 1]
+                if dt > 0 && dt <= TrackStatistics.pauseGap { mps = dd / dt }
+            }
+            guard let v = mps else { return nil }
+            return useMetric ? v * 3.6 : v * 2.23694
+        }
+    }
+
+    private var unit: String {
+        switch metric {
+        case .elevation: return useMetric ? "m" : "ft"
+        case .heartRate: return "bpm"
+        case .power: return "W"
+        case .cadence: return "rpm"
+        case .speed: return useMetric ? "km/h" : "mph"
+        case .temperature: return useMetric ? "°C" : "°F"
+        }
+    }
+
+    // Build the series for the chart: strided, distances from the prefix sums (linear)
+    private func prepareSeries() -> Series {
         let locations = trackSegments.flatMap { $0.locations }
-        let rawElevations = locations.map { $0.altitude }
-        
-        // Calculate min, max and gain
-        let minElevation = rawElevations.min() ?? 0
-        let maxElevation = rawElevations.max() ?? 0
-        let elevationGain = calculateElevationGain(rawElevations)
-        
-        // Calculate display elevations with unit conversion if needed
-        var chartPoints: [ElevationPoint] = []
-        
-        // Use the chart data density setting to determine stride size
-        let strideSize = calculateStrideSize(for: rawElevations.count)
-        
-        for (i, originalIndex) in stride(from: 0, to: rawElevations.count, by: strideSize).enumerated() {
-            let elevation = rawElevations[originalIndex]
-            let distanceMeters = calculateDistance(upTo: originalIndex, locations: locations)
-            
-            // Convert to proper units (kilometers or miles)
-            let displayDistance = settings.useMetricSystem
-                ? distanceMeters / 1000  // to kilometers
-                : distanceMeters / 1609.34  // to miles
-            
-            // Convert elevation if needed
-            let displayElevation = settings.useMetricSystem
-                ? elevation  // keep as meters
-                : elevation * 3.28084  // to feet
-            
-            chartPoints.append(ElevationPoint(
-                distance: displayDistance,
-                elevation: displayElevation,
-                index: i,
-                originalIndex: originalIndex
-            ))
+        let samples = trackSegments.flatMap { $0.samples }
+        let eleValid = trackSegments.flatMap { seg in seg.locations.map { seg.hasElevation && $0.verticalAccuracy >= 0 } }
+        let distances = stats.cumulativeDistances
+        guard locations.count == distances.count, samples.count == locations.count else {
+            return Series(points: [], min: 0, max: 0, unit: unit)
         }
-        
-        // Always include the last point if we're striding
-        if strideSize > 1 && !chartPoints.isEmpty && chartPoints.last?.originalIndex != rawElevations.count - 1 {
-            let originalIndex = rawElevations.count - 1
-            let elevation = rawElevations[originalIndex]
-            let distanceMeters = calculateDistance(upTo: originalIndex, locations: locations)
-            
-            let displayDistance = settings.useMetricSystem
-                ? distanceMeters / 1000
-                : distanceMeters / 1609.34
-            
-            let displayElevation = settings.useMetricSystem
-                ? elevation
-                : elevation * 3.28084
-            
-            chartPoints.append(ElevationPoint(
-                distance: displayDistance,
-                elevation: displayElevation,
-                index: chartPoints.count,
-                originalIndex: originalIndex
-            ))
+        let strideSize = calculateStrideSize(for: locations.count)
+        let toDisplay = useMetric ? 1.0 / 1000.0 : 1.0 / 1609.34
+
+        var points: [ElevationPoint] = []
+        points.reserveCapacity(locations.count / strideSize + 2)
+        var lo = Double.greatestFiniteMagnitude, hi = -Double.greatestFiniteMagnitude
+        func add(_ i: Int) {
+            guard let v = value(at: i, locations: locations, samples: samples, eleValid: eleValid) else { return }
+            points.append(ElevationPoint(distance: distances[i] * toDisplay, elevation: v, index: points.count, originalIndex: i))
+            lo = Swift.min(lo, v); hi = Swift.max(hi, v)
         }
-        
-        return (points: chartPoints, min: minElevation, max: maxElevation, gain: elevationGain, locations: locations)
+        for i in stride(from: 0, to: locations.count, by: strideSize) { add(i) }
+        if strideSize > 1, let last = points.last, last.originalIndex != locations.count - 1 { add(locations.count - 1) }
+        if points.isEmpty { lo = 0; hi = 0 }
+        return Series(points: points, min: lo, max: hi, unit: unit)
     }
-    
-    // Calculate cumulative distance up to a specific index
-    private func calculateDistance(upTo index: Int, locations: [CLLocation]) -> Double {
-        guard index > 0 && index < locations.count else { return 0 }
-        
-        var totalDistance: Double = 0
-        for i in 1...index {
-            totalDistance += locations[i-1].distance(from: locations[i])
-        }
-        
-        return totalDistance
-    }
-    
+
     var body: some View {
         VStack {
-            // Get all elevation data first to simplify view code
-            let elevationData = prepareElevationData()
-            
-            // Elevation chart with metrics
+            let series = prepareSeries()
+            let available = ChartMetric.available(for: trackSegments, stats: stats)
+
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Elevation Profile")
-                            .font(.headline)
+                        HStack(spacing: 8) {
+                            Text(metric == .elevation ? "Elevation Profile" : metric.rawValue)
+                                .font(.headline)
+                            if available.count > 1 {
+                                Picker("Metric", selection: $metric) {
+                                    ForEach(available) { m in
+                                        Label(m.rawValue, systemImage: m.systemImage).tag(m)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .labelsHidden()
+                                .fixedSize()
+                                .accessibilityLabel("Chart metric")
+                            }
+                        }
 
                         HStack(spacing: 16) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "arrow.down")
-                                    .foregroundColor(.blue)
-                                Text("Min: \(formatElevation(elevationData.min))")
-                                    .font(.caption)
-                            }
-
-                            HStack(spacing: 4) {
-                                Image(systemName: "arrow.up")
-                                    .foregroundColor(.red)
-                                Text("Max: \(formatElevation(elevationData.max))")
-                                    .font(.caption)
-                            }
-
-                            HStack(spacing: 4) {
-                                Image(systemName: "mountain.2")
-                                    .foregroundColor(.green)
-                                Text("Gain: \(formatElevation(elevationData.gain))")
-                                    .font(.caption)
+                            if metric == .elevation, stats.hasElevation {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "arrow.down").foregroundColor(.blue)
+                                    Text("Min: \(StatsFormat.elevation(stats.minElevation ?? 0, metric: useMetric))").font(.caption)
+                                }
+                                HStack(spacing: 4) {
+                                    Image(systemName: "arrow.up").foregroundColor(.red)
+                                    Text("Max: \(StatsFormat.elevation(stats.maxElevation ?? 0, metric: useMetric))").font(.caption)
+                                }
+                                HStack(spacing: 4) {
+                                    Image(systemName: "mountain.2").foregroundColor(.green)
+                                    Text("Gain: \(StatsFormat.elevation(stats.elevationGain ?? 0, metric: useMetric))").font(.caption)
+                                }
+                            } else if !series.points.isEmpty {
+                                Text(String(format: "%.0f–%.0f %@", series.min, series.max, series.unit)).font(.caption)
+                                if metric == .heartRate, let hr = stats.heartRate {
+                                    Text("avg \(Int(hr.average.rounded())) bpm").font(.caption)
+                                } else if metric == .power, let p = stats.power {
+                                    Text("avg \(Int(p.average.rounded())) W").font(.caption)
+                                } else if metric == .cadence, let c = stats.cadence {
+                                    Text("avg \(Int(c.average.rounded())) rpm").font(.caption)
+                                } else if metric == .speed, let v = stats.averageSpeed {
+                                    Text("avg \(StatsFormat.speed(v, metric: useMetric))").font(.caption)
+                                }
                             }
                         }
                     }
@@ -143,32 +206,22 @@ struct ElevationOverlay: View {
                     // Zoom indicator and reset button
                     if zoomRange != nil {
                         HStack(spacing: 6) {
-                            // Zoom status indicator
                             HStack(spacing: 4) {
                                 Image(systemName: "magnifyingglass")
                                     .font(.system(size: 10))
                                     .foregroundColor(.secondary)
-
                                 let zoomStart = String(format: "%.1f", zoomRange?.lowerBound ?? 0)
                                 let zoomEnd = String(format: "%.1f", zoomRange?.upperBound ?? 0)
-                                let unit = settings.useMetricSystem ? "km" : "mi"
-
-                                Text("\(zoomStart)-\(zoomEnd)\(unit)")
+                                let xUnit = useMetric ? "km" : "mi"
+                                Text("\(zoomStart)-\(zoomEnd)\(xUnit)")
                                     .font(.caption2)
                                     .foregroundColor(.secondary)
                             }
                             .padding(.vertical, 4)
                             .padding(.horizontal, 6)
-                            .background(
-                                Capsule()
-                                    .fill(Color.secondary.opacity(0.1))
-                            )
+                            .background(Capsule().fill(Color.secondary.opacity(0.1)))
 
-                            // Zoom out button
-                            Button(action: {
-                                // Reset zoom range to nil
-                                zoomRange = nil
-                            }) {
+                            Button(action: { zoomRange = nil }) {
                                 Image(systemName: "arrow.up.left.and.arrow.down.right")
                                     .font(.system(size: 12))
                                     .padding(5)
@@ -176,31 +229,24 @@ struct ElevationOverlay: View {
                                     .clipShape(Circle())
                             }
                             .buttonStyle(BorderlessButtonStyle())
+                            .help("Reset zoom")
                         }
                         .transition(.opacity)
                         .animation(.easeInOut(duration: 0.2), value: zoomRange != nil)
-                        .help("Reset zoom")
                     }
                 }
-                
-                // Elevation chart using Swift Charts
-                if !elevationData.points.isEmpty {
-                    // Define common values
-                    let yUnit = settings.useMetricSystem ? "m" : "ft"
-                    let xUnit = settings.useMetricSystem ? "km" : "mi"
-                    
-                    // Create chart with interactions
+
+                if !series.points.isEmpty {
                     OptimizedElevationChartView(
-                        points: elevationData.points,
-                        minValue: elevationData.min * (settings.useMetricSystem ? 1.0 : 3.28084),
-                        maxValue: elevationData.max * (settings.useMetricSystem ? 1.0 : 3.28084),
-                        yUnit: yUnit,
-                        xUnit: xUnit,
+                        points: series.points,
+                        minValue: series.min,
+                        maxValue: series.max,
+                        yUnit: series.unit,
+                        xUnit: useMetric ? "km" : "mi",
+                        tint: metric.color,
+                        isElevation: metric == .elevation,
                         onHover: { pointIndex in
-                            // Throttle hover updates to prevent excessive map marker updates
-                            // Only update if we have a point and it's different from current selection
-                            if let point = elevationData.points.first(where: { $0.index == pointIndex }) {
-                                // Only update if index actually changed to reduce map updates
+                            if let point = series.points.first(where: { $0.index == pointIndex }) {
                                 if self.selectedPointIndex != point.originalIndex {
                                     self.selectedPointIndex = point.originalIndex
                                 }
@@ -209,16 +255,17 @@ struct ElevationOverlay: View {
                             }
                         },
                         onDragSelection: { startDistance, endDistance in
-                            if startDistance != endDistance {
-                                zoomRange = startDistance...endDistance
-                            } else {
-                                zoomRange = nil
-                            }
+                            zoomRange = startDistance != endDistance ? startDistance...endDistance : nil
                         },
                         zoomRange: zoomRange
                     )
                     .frame(height: 120)
                     .padding(.vertical, 4)
+                } else {
+                    Text(metric == .elevation ? "This file has no elevation data." : "No \(metric.rawValue.lowercased()) data in the visible tracks.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .frame(height: 40)
                 }
             }
             .padding()
@@ -231,186 +278,96 @@ struct ElevationOverlay: View {
             .padding([.horizontal, .bottom])
         }
     }
-    
-    // Helper function to calculate elevation gain from a series of elevation points
-    private func calculateElevationGain(_ elevations: [Double]) -> Double {
-        guard elevations.count > 1 else { return 0 }
-        
-        var gain: Double = 0
-        
-        for i in 1..<elevations.count {
-            let diff = elevations[i] - elevations[i-1]
-            // Only count positive elevation changes (uphill)
-            if diff > 0 {
-                gain += diff
-            }
-        }
-        
-        return gain
-    }
-    
-    // Helper function to format elevation
-    private func formatElevation(_ elevation: Double) -> String {
-        if settings.useMetricSystem {
-            return String(format: "%.0f m", elevation)
-        } else {
-            let feet = elevation * 3.28084
-            return String(format: "%.0f ft", feet)
-        }
-    }
-    
-    // Helper function to calculate appropriate stride size based on settings
+
+    // Stride so the chart draws a sensible number of points; density setting scales it
     private func calculateStrideSize(for dataPointCount: Int) -> Int {
-        // Get the stride factor from settings
         let strideFactor = settings.chartDataStride
-        
-        // For small datasets, don't stride at all
-        if dataPointCount <= 500 {
-            return 1
-        }
-        
-        // For medium datasets, use moderate stride if density is not maximum
-        if dataPointCount <= 2000 {
-            return settings.chartDataDensity >= 1.0 ? 1 : strideFactor
-        }
-        
-        // For very large datasets, calculate a dynamic stride to get a reasonable number of points
-        // Min points: dataPointCount / (strideFactor * 10)
-        // Max points: dataPointCount / strideFactor
-        let baseStride = max(1, dataPointCount / 2000) * strideFactor
-        return baseStride
+        if dataPointCount <= 500 { return 1 }
+        if dataPointCount <= 2000 { return settings.chartDataDensity >= 1.0 ? 1 : strideFactor }
+        return max(1, dataPointCount / 2000) * strideFactor
     }
 }
 
-// Extract chart into a separate view component to reduce complexity
+// The chart itself: area + line, hover/scrub marker, macOS drag-to-zoom
 struct OptimizedElevationChartView: View {
     let points: [ElevationOverlay.ElevationPoint]
     let minValue: Double
     let maxValue: Double
     let yUnit: String
     let xUnit: String
+    var tint: Color = .green
+    var isElevation: Bool = true
     var onHover: ((Int?) -> Void)? = nil
     var onDragSelection: ((Double, Double) -> Void)? = nil
     var zoomRange: ClosedRange<Double>? = nil
 
-    // State for chart selection and interaction
     @State private var selectedPoint: ElevationOverlay.ElevationPoint? = nil
     @State private var isDragging: Bool = false
     @State private var dragStart: Double? = nil
     @State private var dragEnd: Double? = nil
 
-    // Get y scale domain
     private var yScaleDomain: ClosedRange<Double> {
-        (minValue * 0.95)...(maxValue * 1.05)
+        let span = max(maxValue - minValue, 1)
+        return (minValue - span * 0.05)...(maxValue + span * 0.05)
     }
 
-    // Performance optimization state
-    @State private var lastHoverTime: Date = Date.distantPast
-    @State private var throttleInterval: TimeInterval = 0.05 // 50ms throttle
+    private var lineGradient: LinearGradient {
+        isElevation
+            ? LinearGradient(colors: [Color.blue, Color.green, Color.red], startPoint: .bottom, endPoint: .top)
+            : LinearGradient(colors: [tint, tint], startPoint: .bottom, endPoint: .top)
+    }
+    private var areaGradient: LinearGradient {
+        isElevation
+            ? LinearGradient(colors: [Color.blue.opacity(0.3), Color.green.opacity(0.3), Color.red.opacity(0.3)], startPoint: .bottom, endPoint: .top)
+            : LinearGradient(colors: [tint.opacity(0.05), tint.opacity(0.35)], startPoint: .bottom, endPoint: .top)
+    }
 
-    // Find the closest point to a given distance value
     private func findClosestPoint(to distance: Double) -> ElevationOverlay.ElevationPoint? {
-        guard !points.isEmpty else { return nil }
-        
-        // Handle edge cases
-        if distance <= points.first!.distance {
-            return points.first!
-        }
-        
-        if distance >= points.last!.distance {
-            return points.last!
-        }
-        
-        // Binary search for the closest point
+        guard let first = points.first, let last = points.last else { return nil }
+        if distance <= first.distance { return first }
+        if distance >= last.distance { return last }
         var low = 0
         var high = points.count - 1
-        
         while high - low > 1 {
             let mid = (low + high) / 2
-            if points[mid].distance < distance {
-                low = mid
-            } else {
-                high = mid
-            }
+            if points[mid].distance < distance { low = mid } else { high = mid }
         }
-        
-        // Return the closer of the two bracketing points
-        let distLow = abs(points[low].distance - distance)
-        let distHigh = abs(points[high].distance - distance)
-        
-        return distLow < distHigh ? points[low] : points[high]
+        return abs(points[low].distance - distance) < abs(points[high].distance - distance) ? points[low] : points[high]
     }
 
     var body: some View {
         Chart {
-            // Area under the line
             ForEach(points) { point in
-                AreaMark(
-                    x: .value("Distance", point.distance),
-                    y: .value("Elevation", point.elevation)
-                )
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [
-                            Color.blue.opacity(0.3),
-                            Color.green.opacity(0.3),
-                            Color.red.opacity(0.3)
-                        ],
-                        startPoint: .bottom,
-                        endPoint: .top
-                    )
-                )
+                AreaMark(x: .value("Distance", point.distance), y: .value("Value", point.elevation))
+                    .foregroundStyle(areaGradient)
             }
-
-            // The elevation line
             ForEach(points) { point in
-                LineMark(
-                    x: .value("Distance", point.distance),
-                    y: .value("Elevation", point.elevation)
-                )
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [Color.blue, Color.green, Color.red],
-                        startPoint: .bottom,
-                        endPoint: .top
-                    )
-                )
-                .lineStyle(StrokeStyle(lineWidth: 2))
+                LineMark(x: .value("Distance", point.distance), y: .value("Value", point.elevation))
+                    .foregroundStyle(lineGradient)
+                    .lineStyle(StrokeStyle(lineWidth: 2))
             }
-
-            // Highlight selected point with a marker
             if let selectedPoint = selectedPoint {
-                // Selection indicator rule
-                RuleMark(
-                    x: .value("Selected", selectedPoint.distance)
-                )
-                .foregroundStyle(Color.gray.opacity(0.3))
-                .zIndex(-1)
-
-                // Show point marker - white background
-                PointMark(
-                    x: .value("Distance", selectedPoint.distance),
-                    y: .value("Elevation", selectedPoint.elevation)
-                )
-                .foregroundStyle(Color.white)
-                .symbolSize(150)
-
-                // Show point marker - red foreground
-                PointMark(
-                    x: .value("Distance", selectedPoint.distance),
-                    y: .value("Elevation", selectedPoint.elevation)
-                )
-                .foregroundStyle(Color.red)
-                .symbolSize(100)
+                RuleMark(x: .value("Selected", selectedPoint.distance))
+                    .foregroundStyle(Color.gray.opacity(0.3))
+                    .zIndex(-1)
+                PointMark(x: .value("Distance", selectedPoint.distance), y: .value("Value", selectedPoint.elevation))
+                    .foregroundStyle(Color.white)
+                    .symbolSize(150)
+                PointMark(x: .value("Distance", selectedPoint.distance), y: .value("Value", selectedPoint.elevation))
+                    .foregroundStyle(Color.red)
+                    .symbolSize(100)
+                    .annotation(position: .top, alignment: .leading) {
+                        Text(String(format: "%.0f %@", selectedPoint.elevation, yUnit))
+                            .font(.caption2)
+                            .padding(3)
+                            .background(Color.secondary.opacity(0.15))
+                            .cornerRadius(4)
+                    }
             }
-
-            // Show drag selection area
             if isDragging, let start = dragStart, let end = dragEnd {
                 RectangleMark(
-                    xStart: .value("Start", min(start, end)),
-                    xEnd: .value("End", max(start, end)),
-                    yStart: .value("Bottom", minValue * 0.95),
-                    yEnd: .value("Top", maxValue * 1.05)
+                    xStart: .value("Start", min(start, end)), xEnd: .value("End", max(start, end)),
+                    yStart: .value("Bottom", yScaleDomain.lowerBound), yEnd: .value("Top", yScaleDomain.upperBound)
                 )
                 .foregroundStyle(Color.blue.opacity(0.2))
             }
@@ -423,8 +380,7 @@ struct OptimizedElevationChartView: View {
                 AxisTick()
                 AxisValueLabel {
                     if let yValue = value.as(Double.self) {
-                        Text("\(Int(yValue)) \(yUnit)")
-                            .font(.caption2)
+                        Text("\(Int(yValue)) \(yUnit)").font(.caption2)
                     }
                 }
             }
@@ -435,93 +391,58 @@ struct OptimizedElevationChartView: View {
                 AxisTick()
                 AxisValueLabel {
                     if let xValue = value.as(Double.self) {
-                        Text(String(format: "%.1f \(xUnit)", xValue))
-                            .font(.caption2)
+                        Text(String(format: "%.1f \(xUnit)", xValue)).font(.caption2)
                     }
                 }
             }
         }
-        // Use chart overlay for more precise hover control
+        .accessibilityLabel("\(isElevation ? "Elevation" : "Value") profile, \(Int(minValue)) to \(Int(maxValue)) \(yUnit)")
         .chartOverlay { proxy in
             GeometryReader { geometry in
                 Rectangle()
                     .fill(Color.clear)
                     .contentShape(Rectangle())
                     #if os(iOS) || os(visionOS)
-                    // iOS - Only use tap/hover with no drag zoom at all
                     .gesture(
                         DragGesture(minimumDistance: 0)
                             .onChanged { value in
-                                // Convert x-position to distance value using ChartProxy
-                                if let distance = proxy.value(atX: value.location.x, as: Double.self) {
-                                    // Find the closest point to this distance
-                                    if let closestPoint = findClosestPoint(to: distance) {
-                                        selectedPoint = closestPoint
-                                        onHover?(closestPoint.index)
-                                    }
+                                if let distance = proxy.value(atX: value.location.x, as: Double.self),
+                                   let closestPoint = findClosestPoint(to: distance) {
+                                    selectedPoint = closestPoint
+                                    onHover?(closestPoint.index)
                                 }
                             }
-                            .onEnded { _ in
-                                // Keep selectedPoint to maintain the visual marker
-                                // Just notify parent that hover ended
-                                onHover?(nil)
-                            }
+                            .onEnded { _ in onHover?(nil) }
                     )
                     #elseif os(macOS)
-                    // macOS hover handling
                     .onHover { hovering in
-                        if !hovering && !isDragging {
-                            // Keep selectedPoint to maintain the visual marker
-                            // Just notify parent that hover ended
-                            onHover?(nil)
-                        }
+                        if !hovering && !isDragging { onHover?(nil) }
                     }
                     .onContinuousHover { phase in
                         switch phase {
                         case .active(let location):
-                            if !isDragging {
-                                // Convert x-position to distance value using ChartProxy
-                                if let distance = proxy.value(atX: location.x, as: Double.self) {
-                                    // Find the closest point to this distance
-                                    if let closestPoint = findClosestPoint(to: distance) {
-                                        selectedPoint = closestPoint
-                                        onHover?(closestPoint.index)
-                                    }
-                                }
+                            if !isDragging, let distance = proxy.value(atX: location.x, as: Double.self),
+                               let closestPoint = findClosestPoint(to: distance) {
+                                selectedPoint = closestPoint
+                                onHover?(closestPoint.index)
                             }
                         case .ended:
-                            if !isDragging {
-                                // Keep selectedPoint to maintain the visual marker
-                                // Just notify parent that hover ended
-                                onHover?(nil)
-                            }
+                            if !isDragging { onHover?(nil) }
                         }
                     }
-                    // Add combined drag gesture for direct selection
                     .gesture(
-                        DragGesture(minimumDistance: 3) // Small threshold for macOS
+                        DragGesture(minimumDistance: 3)
                             .onChanged { value in
-                                // Start dragging immediately - macOS has better hover separation
                                 if !isDragging {
                                     isDragging = true
                                     dragStart = proxy.value(atX: value.startLocation.x, as: Double.self)
                                 }
-
-                                // Update end position
                                 dragEnd = proxy.value(atX: value.location.x, as: Double.self)
                             }
                             .onEnded { _ in
-                                if let start = dragStart, let end = dragEnd, isDragging {
-                                    // Only trigger zoom if selection has meaningful width
-                                    if abs(end - start) > 0.05 {
-                                        onDragSelection?(
-                                            min(start, end),
-                                            max(start, end)
-                                        )
-                                    }
+                                if let start = dragStart, let end = dragEnd, isDragging, abs(end - start) > 0.05 {
+                                    onDragSelection?(min(start, end), max(start, end))
                                 }
-
-                                // Reset state
                                 isDragging = false
                                 dragStart = nil
                                 dragEnd = nil
@@ -530,13 +451,6 @@ struct OptimizedElevationChartView: View {
                     #endif
             }
         }
-        // Double tap/click to reset zoom (works on both platforms)
-        .gesture(   
-            TapGesture(count: 2)
-                .onEnded {
-                    // Double tap resets zoom
-                    onDragSelection?(0, 0)
-                }
-        )
+        .gesture(TapGesture(count: 2).onEnded { onDragSelection?(0, 0) })
     }
 }

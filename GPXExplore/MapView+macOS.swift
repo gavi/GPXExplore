@@ -95,7 +95,7 @@ struct MapView: NSViewRepresentable, MapViewShared {
             allLocations.append(contentsOf: locations)
             
             // Create the enhanced elevation polyline for this segment
-            let elevationPolyline = createElevationPolyline(from: locations)
+            let elevationPolyline = createElevationPolyline(from: segment)
             
             // Calculate grade data (this will smooth and process elevation data)
             elevationPolyline.calculateGradeData(from: locations)
@@ -222,7 +222,7 @@ struct MapView: NSViewRepresentable, MapViewShared {
         // Add each segment's polyline
         var newElevationPolylines: [ElevationPolyline] = []
         for segment in trackSegments {
-            let elevationPolyline = createElevationPolyline(from: segment.locations)
+            let elevationPolyline = createElevationPolyline(from: segment)
             elevationPolyline.calculateGradeData(from: segment.locations)
             mapView.addOverlay(elevationPolyline)
             newElevationPolylines.append(elevationPolyline)

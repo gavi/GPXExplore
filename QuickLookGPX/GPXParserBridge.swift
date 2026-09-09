@@ -116,6 +116,15 @@ class GPXParser {
 }
 
 // Simplified parser delegate for QuickLook
+// ISO 8601 with or without fractional seconds, and zone-less stamps read as UTC (same rules as the app)
+enum GPXDate {
+    private static let fractional: ISO8601DateFormatter = { let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]; return f }()
+    private static let plain: ISO8601DateFormatter = { let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime]; return f }()
+    private static let zoneless: DateFormatter = { let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.timeZone = TimeZone(secondsFromGMT: 0); f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"; return f }()
+    static func parse(_ text: String) -> Date? { plain.date(from: text) ?? fractional.date(from: text) ?? zoneless.date(from: text) }
+}
+let gpxMissingTimestamp = Date(timeIntervalSince1970: 0)
+
 class GPXParserDelegate: NSObject, XMLParserDelegate {
     private var currentElement = ""
     
@@ -220,6 +229,12 @@ class GPXParserDelegate: NSObject, XMLParserDelegate {
         }
     }
     
+    static func coordinate(from attributes: [String: String]) -> (Double, Double)? {
+        guard let a = attributes["lat"], let b = attributes["lon"], let lat = Double(a), let lon = Double(b),
+              lat >= -90, lat <= 90, lon >= -180, lon <= 180 else { return nil }
+        return (lat, lon)
+    }
+
     func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String] = [:]) {
         currentElement = elementName
         
@@ -249,22 +264,25 @@ class GPXParserDelegate: NSObject, XMLParserDelegate {
             
         case "trkpt":
             isTrackPoint = true
-            currentLat = Double(attributeDict["lat"] ?? "0")
-            currentLon = Double(attributeDict["lon"] ?? "0")
+            let pair = Self.coordinate(from: attributeDict)
+            currentLat = pair?.0
+            currentLon = pair?.1
             currentEle = nil
             currentTime = nil
             
         case "rtept":
             isRoutePoint = true
-            currentLat = Double(attributeDict["lat"] ?? "0")
-            currentLon = Double(attributeDict["lon"] ?? "0")
+            let pair = Self.coordinate(from: attributeDict)
+            currentLat = pair?.0
+            currentLon = pair?.1
             currentEle = nil
             currentTime = nil
             
         case "wpt":
             isWaypoint = true
-            currentLat = Double(attributeDict["lat"] ?? "0")
-            currentLon = Double(attributeDict["lon"] ?? "0")
+            let pair = Self.coordinate(from: attributeDict)
+            currentLat = pair?.0
+            currentLon = pair?.1
             currentEle = nil
             currentTime = nil
             currentWaypointName = ""
@@ -285,8 +303,7 @@ class GPXParserDelegate: NSObject, XMLParserDelegate {
             case "ele":
                 currentEle = Double(trimmedString)
             case "time":
-                let formatter = ISO8601DateFormatter()
-                currentTime = formatter.date(from: trimmedString)
+                currentTime = GPXDate.parse(trimmedString)
             default:
                 break
             }
@@ -295,8 +312,7 @@ class GPXParserDelegate: NSObject, XMLParserDelegate {
             case "ele":
                 currentEle = Double(trimmedString)
             case "time":
-                let formatter = ISO8601DateFormatter()
-                currentTime = formatter.date(from: trimmedString)
+                currentTime = GPXDate.parse(trimmedString)
             default:
                 break
             }
@@ -305,8 +321,7 @@ class GPXParserDelegate: NSObject, XMLParserDelegate {
             case "ele":
                 currentEle = Double(trimmedString)
             case "time":
-                let formatter = ISO8601DateFormatter()
-                currentTime = formatter.date(from: trimmedString)
+                currentTime = GPXDate.parse(trimmedString)
             case "name":
                 currentWaypointName = trimmedString
             case "desc":
@@ -323,8 +338,7 @@ class GPXParserDelegate: NSObject, XMLParserDelegate {
             case "type":
                 currentTrackType = trimmedString
             case "time":
-                let formatter = ISO8601DateFormatter()
-                if let date = formatter.date(from: trimmedString) {
+                if let date = GPXDate.parse(trimmedString) {
                     currentTrackDate = date
                 }
             default:
@@ -337,8 +351,7 @@ class GPXParserDelegate: NSObject, XMLParserDelegate {
             case "type":
                 currentTrackType = trimmedString
             case "time":
-                let formatter = ISO8601DateFormatter()
-                if let date = formatter.date(from: trimmedString) {
+                if let date = GPXDate.parse(trimmedString) {
                     currentTrackDate = date
                 }
             default:
@@ -348,8 +361,7 @@ class GPXParserDelegate: NSObject, XMLParserDelegate {
             // Handle metadata elements
             switch currentElement {
             case "time":
-                let formatter = ISO8601DateFormatter()
-                if let date = formatter.date(from: trimmedString) {
+                if let date = GPXDate.parse(trimmedString) {
                     gpxMetadataDate = date
                 }
             default:
@@ -369,8 +381,8 @@ class GPXParserDelegate: NSObject, XMLParserDelegate {
                     coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
                     altitude: currentEle ?? 0,
                     horizontalAccuracy: 10,
-                    verticalAccuracy: 10,
-                    timestamp: currentTime ?? Date()
+                    verticalAccuracy: currentEle == nil ? -1 : 10,
+                    timestamp: currentTime ?? gpxMissingTimestamp
                 )
                 currentSegmentPoints.append(location)
             }
@@ -382,8 +394,8 @@ class GPXParserDelegate: NSObject, XMLParserDelegate {
                     coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
                     altitude: currentEle ?? 0,
                     horizontalAccuracy: 10,
-                    verticalAccuracy: 10,
-                    timestamp: currentTime ?? Date()
+                    verticalAccuracy: currentEle == nil ? -1 : 10,
+                    timestamp: currentTime ?? gpxMissingTimestamp
                 )
                 currentRoutePoints.append(location)
             }

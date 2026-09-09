@@ -4,19 +4,21 @@ A cross-platform macOS/iOS application for viewing GPX track files on a map with
 
 ## Features
 
-- Open and parse GPX track files
-- Display tracks on an interactive map
-- Gradient-colored tracks based on elevation changes
-- Display track statistics
-- Support for both macOS and iOS platforms
+- Open and parse GPX track files: tracks, routes, waypoints, metadata, and Garmin-style
+  extensions (heart rate, cadence, power, speed, temperature)
+- Display tracks on an interactive map, coloured by grade or by elevation
+- A chart of elevation or any recorded sensor series, with hover/scrub and zoom
+- Workout statistics: moving time, pace and speed, gain and loss, splits per km or mile
+- Share the GPX file, or export the map and chart as an image
+- Finder Quick Look preview on the Mac
+- One codebase for iPhone, iPad and Mac
 
 ## Getting Started
 
 ### Prerequisites
 
-- Xcode 14.0 or later
-- macOS Ventura or later (for development)
-- iOS 16.0 or later (for iOS deployment)
+- Xcode 16 or later
+- macOS 14.6 or later, iOS 17.6 or later
 
 ### Building the Project
 

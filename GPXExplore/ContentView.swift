@@ -11,7 +11,7 @@ struct ContentView: View {
     @State private var selectedTrackIndex: Int = 0
     @State private var segments: [GPXTrackSegment] = []
     @State private var waypointsVisible: Bool = true
-    @State private var documentTitle: String = "GPX Explorer"
+    @State private var documentTitle: String = "GPX Explore"
     @State private var selectedWaypointIndex: Int = -1 // -1 indicates no selection
     @State private var selectedWaypointCoordinate: CLLocationCoordinate2D? = nil
     @State private var triggerSpanView: Bool = false
@@ -19,15 +19,22 @@ struct ContentView: View {
     @State private var isRouteInfoOverlayVisible: Bool = true
     @State private var chartHoverPointIndex: Int? = nil // Index in trackLocations for chart hover
     @State private var chartZoomRange: ClosedRange<Double>? = nil // Current zoom range for chart
-        
-    private func updateDocumentTitle() {
-        // Update title based on the GPX filename
-        if let filename = document.gpxFile?.filename {
-            let fileNameWithoutExtension = (filename as NSString).deletingPathExtension
-            documentTitle = fileNameWithoutExtension
+    @State private var chartMetric: ChartMetric = .elevation
 
+    // Statistics for the visible segments, recomputed only when they change (never in body)
+    @State private var stats: TrackStatistics = .empty
+
+    // Export
+    @State private var isExporting = false
+    @State private var exportedImageURL: URL? = nil
+    @State private var exportError: String? = nil
+    @Environment(\.documentConfiguration) private var documentConfiguration
+
+    private func updateDocumentTitle() {
+        if let filename = document.gpxFile?.filename {
+            documentTitle = (filename as NSString).deletingPathExtension
         } else {
-            documentTitle = "GPX Explorer"
+            documentTitle = "GPX Explore"
         }
     }
 
@@ -36,115 +43,66 @@ struct ContentView: View {
         if visibleSegments.count != segments.count {
             visibleSegments = Array(repeating: true, count: segments.count)
         }
+        recomputeStats()
     }
-    
+
+    private func recomputeStats() {
+        let visible = visibleTrackSegments
+        stats = TrackStatistics(segments: visible, splitLength: settings.useMetricSystem ? 1000 : 1609.34)
+        let available = ChartMetric.available(for: visible, stats: stats)
+        if !available.contains(chartMetric) { chartMetric = available.first ?? .elevation }
+    }
+
     private var visibleTrackSegments: [GPXTrackSegment] {
-        // Filter segments based on visibility
-        return zip(segments, visibleSegments)
-            .filter { $0.1 }  // Keep only visible segments
-            .map { $0.0 }     // Return just the segment
+        zip(segments, visibleSegments).filter { $0.1 }.map { $0.0 }
     }
-    
+
     private var selectedTrack: GPXTrack? {
         guard !document.tracks.isEmpty else { return nil }
-        if document.tracks.indices.contains(selectedTrackIndex) {
-            return document.tracks[selectedTrackIndex]
-        } else {
-            // Reset to first track if index is invalid
-            selectedTrackIndex = 0
-            return document.tracks.first
-        }
+        return document.tracks.indices.contains(selectedTrackIndex) ? document.tracks[selectedTrackIndex] : document.tracks.first
     }
-    
-    // Create a workout based on visible segments
-    private func createWorkoutFromSegments(_ segments: [GPXTrackSegment], originalTrack: GPXTrack) -> GPXWorkout {
-        // Combine all locations from visible segments
-        let allLocations = segments.flatMap { $0.locations }
-        
-        // If no visible segments, return the original workout
-        if allLocations.isEmpty {
-            return originalTrack.workout
-        }
-        
-        // Sort locations by timestamp to get accurate start/end times
-        let sortedLocations = allLocations.sorted { $0.timestamp < $1.timestamp }
-        
-        // Extract start and end dates from visible locations
-        let startDate = sortedLocations.first?.timestamp ?? originalTrack.workout.startDate
-        let endDate = sortedLocations.last?.timestamp ?? originalTrack.workout.endDate
-        
-        // Calculate total distance from visible segments
-        var totalDistanceMeters: Double = 0
-        if allLocations.count > 1 {
-            for i in 0..<(allLocations.count - 1) {
-                totalDistanceMeters += allLocations[i].distance(from: allLocations[i+1])
-            }
-        }
-        
-        // Create a new workout with data just from visible segments
-        return GPXWorkout(
-            activityType: originalTrack.activityType,
-            startDate: startDate,
-            endDate: endDate,
-            duration: endDate.timeIntervalSince(startDate),
-            totalDistance: totalDistanceMeters,
-            metadata: originalTrack.workout.metadata
-        )
-    }
+
+    private var hasContent: Bool { !document.trackSegments.isEmpty || !document.waypoints.isEmpty }
 
     var body: some View {
         ZStack {
-            if !document.trackSegments.isEmpty {
-                // Initialize data from document
+            if hasContent {
                 Color.clear
                     .onAppear {
                         updateFromDocument()
-                        // Initialize overlay visibility from settings
                         isElevationOverlayVisible = settings.defaultShowElevationOverlay
                         isRouteInfoOverlayVisible = settings.defaultShowRouteInfoOverlay
                     }
-                    .onChange(of: document.trackSegments.count) { oldValue, newValue in
-                        updateFromDocument()
-                    }
-                
-                // Main content with optional drawer
+                    .onChange(of: document.trackSegments.count) { _, _ in updateFromDocument() }
+                    .onChange(of: visibleSegments) { _, _ in recomputeStats() }
+                    .onChange(of: settings.useMetricSystem) { _, _ in recomputeStats() }
+
                 HStack(spacing: 0) {
-                    // Main map content
                     ZStack {
-                        // Map view as the base layer
                         MapView(
                             trackSegments: visibleTrackSegments,
                             waypoints: waypointsVisible ? document.waypoints : [],
                             centerCoordinate: selectedWaypointCoordinate,
-                            zoomLevel: 0.005, // Closer zoom when centering on a waypoint
-                            spanAll: triggerSpanView, // Trigger to span view to all visible content
-                            hoveredPointIndex: chartHoverPointIndex // Pass the currently hovered point index
+                            zoomLevel: 0.005,
+                            spanAll: triggerSpanView,
+                            hoveredPointIndex: chartHoverPointIndex
                         )
                         .environmentObject(settings)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .onChange(of: triggerSpanView) { oldValue, newValue in
+                        .onChange(of: triggerSpanView) { _, newValue in
                             if newValue {
-                                // Reset the trigger after it's been used
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                    triggerSpanView = false
-                                }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { triggerSpanView = false }
                             }
                         }
-                        // Reset chart hover when user selects a waypoint
                         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("WaypointSelected"))) { _ in
                             chartHoverPointIndex = nil
                             chartZoomRange = nil
                         }
-                        
-                        // Overlay with route information
-                        if let track = selectedTrack {
-                            // Create a workout based only on visible segments
-                            let visibleWorkout = createWorkoutFromSegments(visibleTrackSegments, originalTrack: track)
-                            
+
+                        if !visibleTrackSegments.isEmpty {
                             VStack {
-                                // Route info at the top
                                 if isRouteInfoOverlayVisible {
-                                    RouteInfoOverlay(trackSegments: visibleTrackSegments, workout: visibleWorkout)
+                                    RouteInfoOverlay(stats: stats, trackName: selectedTrack?.name ?? documentTitle, trackDescription: selectedTrack?.description ?? selectedTrack?.comment ?? document.gpxFile?.metadata.description)
                                         .environmentObject(settings)
                                         .transition(.move(edge: .top))
                                         .animation(.easeInOut, value: isRouteInfoOverlayVisible)
@@ -152,10 +110,11 @@ struct ContentView: View {
 
                                 Spacer()
 
-                                // Elevation overlay at the bottom
-                                if isElevationOverlayVisible && !visibleTrackSegments.isEmpty {
+                                if isElevationOverlayVisible {
                                     ElevationOverlay(
                                         trackSegments: visibleTrackSegments,
+                                        stats: stats,
+                                        metric: $chartMetric,
                                         selectedPointIndex: $chartHoverPointIndex,
                                         zoomRange: $chartZoomRange
                                     )
@@ -164,69 +123,96 @@ struct ContentView: View {
                                     .animation(.easeInOut, value: isElevationOverlayVisible)
                                 }
                             }
+                        } else if !document.waypoints.isEmpty {
+                            VStack {
+                                Text("\(document.waypoints.count) waypoint\(document.waypoints.count == 1 ? "" : "s"), no tracks")
+                                    .font(.subheadline)
+                                    .padding(8)
+                                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                                    .padding(.top)
+                                Spacer()
+                            }
+                        }
+
+                        if isExporting {
+                            ProgressView("Rendering image…")
+                                .padding()
+                                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
                         }
                     }
                     #if os(iOS) || os(visionOS)
                     .toolbar(.visible, for: .navigationBar)
                     #endif
                     .toolbar {
-                        // Map style menu
                         ToolbarItem(placement: .automatic) {
                             Menu {
-                                ForEach(MapStyle.allCases) { style in
+                                ForEach(Array(MapStyle.allCases.enumerated()), id: \.element.id) { index, style in
                                     Button {
                                         settings.mapStyle = style
                                     } label: {
                                         Label(style.rawValue, systemImage: style.iconName)
                                     }
+                                    .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
                                 }
                             } label: {
                                 Label("Map Style", systemImage: "map")
                             }
                         }
-                        
-                        // Elevation overlay toggle
+
                         ToolbarItem(placement: .automatic) {
-                            Button(action: {
-                                isElevationOverlayVisible.toggle()
-                            }) {
+                            Button(action: { isElevationOverlayVisible.toggle() }) {
                                 Label("Elevation", systemImage: "mountain.2")
+                            }
+                            .keyboardShortcut("e", modifiers: .command)
+                            .help("Show or hide the chart (⌘E)")
+                        }
+
+                        ToolbarItem(placement: .automatic) {
+                            Button(action: { isRouteInfoOverlayVisible.toggle() }) {
+                                Label("Route Info", systemImage: "info.circle")
+                            }
+                            .keyboardShortcut("i", modifiers: .command)
+                            .help("Show or hide the route card (⌘I)")
+                        }
+
+                        // Share and export
+                        ToolbarItem(placement: .automatic) {
+                            Menu {
+                                if let fileURL = documentFileURL {
+                                    ShareLink(item: fileURL) {
+                                        Label("Share GPX File", systemImage: "doc")
+                                    }
+                                }
+                                Button {
+                                    Task { await exportImage() }
+                                } label: {
+                                    Label("Export Map Image…", systemImage: "photo")
+                                }
+                                .disabled(visibleTrackSegments.isEmpty || isExporting)
+                                .keyboardShortcut("e", modifiers: [.command, .shift])
+                            } label: {
+                                Label("Share", systemImage: "square.and.arrow.up")
                             }
                         }
 
-                        // Route info overlay toggle
                         ToolbarItem(placement: .automatic) {
-                            Button(action: {
-                                isRouteInfoOverlayVisible.toggle()
-                            }) {
-                                Label("Route Info", systemImage: "info.circle")
-                            }
-                        }
-                        
-                        // Settings button
-                        ToolbarItem(placement: .automatic) {
-                            Button(action: {
-                                isSettingsPresented = true
-                            }) {
+                            Button(action: { isSettingsPresented = true }) {
                                 Label("Settings", systemImage: "gear")
                             }
+                            .keyboardShortcut(",", modifiers: .command)
                         }
-                        
-                        // Span to fit button
+
                         ToolbarItem(placement: .automatic) {
                             Button(action: {
-                                // Clear any selected waypoint first
                                 selectedWaypointCoordinate = nil
-                                // Trigger the span view
                                 triggerSpanView = true
                             }) {
                                 Label("Fit to View", systemImage: "arrow.up.left.and.arrow.down.right")
                             }
+                            .keyboardShortcut("0", modifiers: .command)
+                            .help("Fit the track in the window (⌘0)")
                         }
-                        
-                        // Location button removed - now using MapKit's built-in user location tracking
-                        
-                        // Tracks drawer toggle
+
                         ToolbarItem(placement: .automatic) {
                             TracksDrawer.toolbarButton(isOpen: $isTracksDrawerOpen)
                         }
@@ -237,15 +223,20 @@ struct ContentView: View {
                                 .environmentObject(settings)
                                 .toolbar {
                                     ToolbarItem(placement: .confirmationAction) {
-                                        Button("Done") {
-                                            isSettingsPresented = false
-                                        }
+                                        Button("Done") { isSettingsPresented = false }
                                     }
                                 }
                         }
                     }
-                    
-                    // Tracks drawer on the right (only shown when open)
+                    .sheet(item: $exportedImageURL) { url in
+                        ExportSheet(imageURL: url) { exportedImageURL = nil }
+                    }
+                    .alert("Could not export", isPresented: Binding(get: { exportError != nil }, set: { if !$0 { exportError = nil } })) {
+                        Button("OK", role: .cancel) {}
+                    } message: {
+                        Text(exportError ?? "")
+                    }
+
                     if isTracksDrawerOpen {
                         TracksDrawer(
                             isOpen: $isTracksDrawerOpen,
@@ -256,9 +247,7 @@ struct ContentView: View {
                             waypointsVisible: $waypointsVisible,
                             selectedWaypointIndex: $selectedWaypointIndex,
                             onWaypointSelected: { coordinate in
-                                // Update the state to center on this waypoint
                                 selectedWaypointCoordinate = coordinate
-                                // Post notification that a waypoint was selected
                                 NotificationCenter.default.post(name: Notification.Name("WaypointSelected"), object: nil)
                             }
                         )
@@ -271,34 +260,64 @@ struct ContentView: View {
                     Text("No valid GPX data found")
                         .font(.title)
                         .padding()
-                    
-                    Text("Open a GPX file to view the track on the map")
+                    Text("This file has no tracks, routes or waypoints. Open a GPX file to view it on the map.")
                         .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
                 }
             }
         }
         #if os(iOS)
         .navigationTitle(documentTitle)
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            updateDocumentTitle()
-            updateFromDocument()
-        }
-        // Check for changes to the GPX file
-        .onChange(of: document.gpxFile?.filename) { oldValue, newValue in
-            updateDocumentTitle()
-        }
         #elseif os(macOS)
+        .background(MacWindowSizer().frame(width: 0, height: 0))
+        #endif
         .onAppear {
             updateDocumentTitle()
             updateFromDocument()
         }
-        // Check for changes to the GPX file
-        .onChange(of: document.gpxFile?.filename) { oldValue, newValue in
-            updateDocumentTitle()
-        }
-        #endif
+        .onChange(of: document.gpxFile?.filename) { _, _ in updateDocumentTitle() }
     }
+
+    // The file behind this document, for sharing; falls back to a temp copy of the text
+    private var documentFileURL: URL? {
+        if let url = documentConfiguration?.fileURL { return url }
+        guard !document.text.isEmpty else { return nil }
+        let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("\(documentTitle).gpx")
+        try? document.text.write(to: url, atomically: true, encoding: .utf8)
+        return url
+    }
+
+    @MainActor
+    private func exportImage() async {
+        isExporting = true
+        defer { isExporting = false }
+        let segmentsToDraw = visibleTrackSegments
+        let wantsChart = stats.hasElevation || stats.heartRate != nil || stats.hasTimestamps
+        let chartImage: CGImage? = wantsChart
+            ? MapImageExporter.renderChart(ElevationOverlay(trackSegments: segmentsToDraw, stats: stats, metric: .constant(chartMetric)).environmentObject(settings), width: 800, height: 160)
+            : nil
+        var subtitle = StatsFormat.distance(stats.distance, metric: settings.useMetricSystem)
+        if let moving = stats.movingTime { subtitle += "  ·  \(StatsFormat.duration(moving)) moving" }
+        if let gain = stats.elevationGain { subtitle += "  ·  +\(StatsFormat.elevation(gain, metric: settings.useMetricSystem))" }
+        if let start = stats.startDate { subtitle += "  ·  \(start.formatted(date: .abbreviated, time: .shortened))" }
+        let options = MapImageExporter.Options(
+            mapStyle: settings.mapStyle,
+            visualization: settings.elevationVisualizationMode,
+            lineWidth: CGFloat(settings.trackLineWidth),
+            title: selectedTrack?.name ?? documentTitle,
+            subtitle: subtitle
+        )
+        do {
+            exportedImageURL = try await MapImageExporter.export(segments: segmentsToDraw, stats: stats, chartImage: chartImage, options: options)
+        } catch {
+            exportError = "The map could not be rendered. \(error.localizedDescription)"
+        }
+    }
+}
+
+extension URL: @retroactive Identifiable {
+    public var id: String { absoluteString }
 }
 
 #Preview {

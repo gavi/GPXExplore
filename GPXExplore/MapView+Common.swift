@@ -14,6 +14,8 @@ typealias PlatformImage = NSImage
 
 // Enhanced polyline object to store elevation data and gradients
 class ElevationPolyline: MKPolyline {
+    // False for tracks whose file carried no <ele>: drawn in one flat colour, no grades
+    var hasElevation: Bool = true
     // Basic elevation data
     var elevations: [CLLocationDistance] = []
     var minElevation: CLLocationDistance = 0
@@ -271,7 +273,9 @@ class GradientPolylineRenderer: MKPolylineRenderer {
                 }
                 
                 // Apply color for this grade
-                let color = colorForGrade(grade)
+                let color = elevationPolyline.hasElevation
+                    ? colorForGrade(grade)
+                    : TrackColors.platformColor(TrackColors.noElevation)
                 
                 // Set stroke color for this segment
                 ctx.setStrokeColor(color.cgColor)
@@ -287,100 +291,10 @@ class GradientPolylineRenderer: MKPolylineRenderer {
         ctx.restoreGState()
     }
     
-    // Get color based on grade (Garmin-like)
+    // Get color based on grade (Garmin-like); the mapping lives in TrackColors so the
+    // image exporter and Quick Look draw the same colours
     private func colorForGrade(_ grade: Double) -> PlatformColor {
-        // Ensure grade is in a reasonable range
-        let clampedGrade = min(max(grade, -verysteepGrade), verysteepGrade)
-        
-        // Enable non-gray colors for flat sections
-        // Set to true to show flat sections as colored
-        let forceNonGrayColors = true
-        
-        // Only log every 10th call to avoid console flood
-        var callCounter = self.callCounter
-        callCounter += 1
-        if callCounter % 20 == 0 {
-            //print("colorForGrade call #\(callCounter): input: \(grade), clamped: \(clampedGrade)")
-        }
-        self.callCounter = callCounter
-        
-        // Color schemes based on Garmin's approach
-        // Uphill: green to yellow to orange to red
-        // Downhill: light blue to darker blue
-        // Flat: gray
-        
-        if clampedGrade > 0 || (forceNonGrayColors && grade >= 0) {
-            // Uphill or flat treated as slight uphill
-            if clampedGrade < minSignificantGrade && !forceNonGrayColors {
-                // Flat to slight uphill: gray (only if not forcing colors)
-                return PlatformColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1.0)
-            } else if clampedGrade < moderateGrade {
-                // Force more vibrant colors rather than subtle gradient
-                // Use multiple distinct colors instead of blending
-                
-                // Slight uphill: vibrant green
-                return PlatformColor(
-                    red: 0.0,
-                    green: 0.8,
-                    blue: 0.0,
-                    alpha: 1.0
-                )
-            } else if clampedGrade < steepGrade {
-                // Moderate uphill: bright orange
-                return PlatformColor(
-                    red: 1.0,
-                    green: 0.6,
-                    blue: 0.0,
-                    alpha: 1.0
-                )
-            } else if clampedGrade < verysteepGrade {
-                // Steep uphill: bright red
-                return PlatformColor(
-                    red: 1.0,
-                    green: 0.1,
-                    blue: 0.0,
-                    alpha: 1.0
-                )
-            } else {
-                // Very steep uphill: bright red
-                return PlatformColor(red: 1.0, green: 0.1, blue: 0, alpha: 1.0)
-            }
-        } else {
-            // Downhill (using absolute value of grade for calculations)
-            let absGrade = abs(clampedGrade)
-            
-            if absGrade < minSignificantGrade && !forceNonGrayColors {
-                // Flat to slight downhill: gray (only if not forcing colors)
-                return PlatformColor(red: 0.5, green: 0.5, blue: 0.5, alpha: 1.0)
-            } else if absGrade < moderateGrade {
-                // Light blue for slight downhill
-                return PlatformColor(
-                    red: 0.0,
-                    green: 0.5,
-                    blue: 1.0,
-                    alpha: 1.0
-                )
-            } else if absGrade < steepGrade {
-                // Medium blue for moderate downhill
-                return PlatformColor(
-                    red: 0.0,
-                    green: 0.3,
-                    blue: 0.9,
-                    alpha: 1.0
-                )
-            } else if absGrade < verysteepGrade {
-                // Deep blue/purple for steep downhill
-                return PlatformColor(
-                    red: 0.3,
-                    green: 0.0,
-                    blue: 0.8,
-                    alpha: 1.0
-                )
-            } else {
-                // Very steep downhill: purple
-                return PlatformColor(red: 0.4, green: 0.2, blue: 0.8, alpha: 1.0)
-            }
-        }
+        return TrackColors.platformColor(TrackColors.rgbForGrade(grade))
     }
 }
 
@@ -456,7 +370,9 @@ class ElevationGradientPolylineRenderer: MKPolylineRenderer {
                 }
                 
                 // Get color based on normalized elevation
-                let color = colorForNormalizedElevation(normalizedElevation)
+                let color = elevationPolyline.hasElevation
+                    ? colorForNormalizedElevation(normalizedElevation)
+                    : TrackColors.platformColor(TrackColors.noElevation)
                 
                 // Set stroke color for this segment
                 ctx.setStrokeColor(color.cgColor)
@@ -614,7 +530,7 @@ class HoverPointAnnotation: NSObject, MKAnnotation {
     }
 
     var subtitle: String? {
-        // Format elevation with proper units
+        guard elevation.isFinite else { return nil }   // .nan marks a point without elevation
         let formattedElevation = useMetric
             ? String(format: "%.0f m", elevation)
             : String(format: "%.0f ft", elevation * 3.28084)
@@ -642,6 +558,13 @@ protocol MapViewShared {
 
 // Helper functions shared by both platforms
 extension MapViewShared {
+    // Polyline for one segment; a segment without elevation data draws flat and skips grading
+    func createElevationPolyline(from segment: GPXTrackSegment) -> ElevationPolyline {
+        let polyline = createElevationPolyline(from: segment.locations)
+        polyline.hasElevation = segment.hasElevation
+        return polyline
+    }
+
     func createElevationPolyline(from locations: [CLLocation]) -> ElevationPolyline {
         let coordinates = locations.map { $0.coordinate }
         let elevations = locations.map { $0.altitude }
@@ -662,7 +585,8 @@ extension MapViewShared {
     }
     
     func addElevationMarkers(to mapView: MKMapView, routeLocations: [CLLocation]) {
-        guard routeLocations.count > 10 else { return }
+        // No peaks or valleys without real elevation data
+        guard routeLocations.count > 10, routeLocations.contains(where: { $0.verticalAccuracy >= 0 }) else { return }
         
         let elevations = routeLocations.map { $0.altitude }
         

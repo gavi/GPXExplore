@@ -1,10 +1,96 @@
 import Foundation
 import CoreLocation
 
+// A GPX <link>: href plus optional text and MIME type (GPX 1.0 <url>/<urlname> map here too)
+struct GPXLink: Equatable {
+    let href: String
+    let text: String?
+    let type: String?
+}
+
+// <author> in GPX 1.1 (name, email, link); GPX 1.0's plain-text author lands in `name`
+struct GPXPerson: Equatable {
+    let name: String?
+    let email: String?
+    let link: GPXLink?
+}
+
+struct GPXBounds: Equatable {
+    let minLatitude: Double, minLongitude: Double, maxLatitude: Double, maxLongitude: Double
+}
+
+// <metadata>, complete: what CoreGPX exposes as GPXMetadata
+struct GPXMetadata: Equatable {
+    var name: String?
+    var description: String?
+    var author: GPXPerson?
+    var copyrightAuthor: String?
+    var copyrightYear: String?
+    var copyrightLicense: String?
+    var links: [GPXLink] = []
+    var time: Date?
+    var keywords: String?
+    var bounds: GPXBounds?
+    var extensions: [String: String] = [:]   // leaf elements under <extensions>, local name → text
+}
+
+// Sensor readings attached to one track point through GPX <extensions> (Garmin
+// TrackPointExtension, PowerExtension, or the bare <power> most services exchange).
+// Every field is optional: most files carry none, WorkoutGPX and watches carry some.
+struct SensorSample: Equatable {
+    var heartRate: Double?    // beats per minute
+    var cadence: Double?      // steps or revolutions per minute
+    var power: Double?        // watts
+    var temperature: Double?  // °C
+    var speed: Double?        // m/s, as recorded (not derived)
+
+    // The rest of what a <trkpt>/<rtept> may carry (GPX 1.1 wptType), kept so nothing is dropped
+    var name: String?
+    var comment: String?
+    var description: String?
+    var source: String?
+    var symbol: String?
+    var type: String?
+    var fix: String?          // none, 2d, 3d, dgps, pps
+    var satellites: Int?
+    var hdop: Double?
+    var vdop: Double?
+    var pdop: Double?
+    var magneticVariation: Double?
+    var geoidHeight: Double?
+    var ageOfDGPSData: Double?
+    var dgpsId: Int?
+    var links: [GPXLink]?
+    var extra: [String: String]?   // extension leaves not mapped above, local name → text
+
+    var isEmpty: Bool { heartRate == nil && cadence == nil && power == nil && temperature == nil && speed == nil }
+}
+
 // Represents a track segment with location points
 struct GPXTrackSegment: Equatable {
     let locations: [CLLocation]
     let trackIndex: Int  // Reference to which track this segment belongs to
+    // One sample per location (same count). Empty samples when the file has no extensions.
+    let samples: [SensorSample]
+    // False when no point in the file carried <ele>: altitudes are placeholders then
+    // (0, verticalAccuracy -1) and nothing elevation-based should be shown.
+    let hasElevation: Bool
+    // False when no point carried <time>: timestamps are placeholders (epoch 0).
+    let hasTimestamps: Bool
+
+    init(locations: [CLLocation], trackIndex: Int, samples: [SensorSample] = [], hasElevation: Bool = true, hasTimestamps: Bool = true) {
+        self.locations = locations
+        self.trackIndex = trackIndex
+        self.samples = samples.count == locations.count ? samples : Array(repeating: SensorSample(), count: locations.count)
+        self.hasElevation = hasElevation
+        self.hasTimestamps = hasTimestamps
+    }
+
+    var hasHeartRate: Bool { samples.contains { $0.heartRate != nil } }
+    var hasCadence: Bool { samples.contains { $0.cadence != nil } }
+    var hasPower: Bool { samples.contains { $0.power != nil } }
+    var hasTemperature: Bool { samples.contains { $0.temperature != nil } }
+    var hasSpeed: Bool { samples.contains { $0.speed != nil } }
     
     static func == (lhs: GPXTrackSegment, rhs: GPXTrackSegment) -> Bool {
         guard lhs.locations.count == rhs.locations.count && lhs.trackIndex == rhs.trackIndex else { return false }
@@ -32,11 +118,30 @@ struct GPXTrack {
     let date: Date
     // Updated to support multiple track segments
     let segments: [GPXTrackSegment]
+    // The rest of trkType / rteType
+    let comment: String?
+    let description: String?
+    let source: String?
+    let links: [GPXLink]
+    let number: Int?
+    let isRoute: Bool                   // came from <rte>, flattened into one segment
+    let extensions: [String: String]    // leaf elements under the track's <extensions>
+
+    init(name: String, type: String, date: Date, segments: [GPXTrackSegment],
+         comment: String? = nil, description: String? = nil, source: String? = nil, links: [GPXLink] = [],
+         number: Int? = nil, isRoute: Bool = false, extensions: [String: String] = [:]) {
+        self.name = name; self.type = type; self.date = date; self.segments = segments
+        self.comment = comment; self.description = description; self.source = source; self.links = links
+        self.number = number; self.isRoute = isRoute; self.extensions = extensions
+    }
     
     // Convenience computed property to get all locations across all segments
     var allLocations: [CLLocation] {
         return segments.flatMap { $0.locations }
     }
+
+    var hasTimestamps: Bool { segments.contains { $0.hasTimestamps } }
+    var hasElevation: Bool { segments.contains { $0.hasElevation } }
     
     var activityType: String {
         // Check filename first for simulator samples
@@ -68,15 +173,15 @@ struct GPXTrack {
         let allLocations = self.allLocations
         let sortedLocations = allLocations.sorted { $0.timestamp < $1.timestamp }
         
-        // Make sure we have valid dates (start date must be before end date)
-        var startDate = sortedLocations.first?.timestamp ?? date
-        var endDate = sortedLocations.last?.timestamp ?? date.addingTimeInterval(3600)
-        
-        // Ensure end date is after start date
-        if endDate <= startDate {
-            // If timestamps are invalid, use the current date with a 1-hour duration
-            startDate = Date()
-            endDate = startDate.addingTimeInterval(3600)
+        // Without timestamps the workout has no duration; never invent one
+        let startDate: Date
+        let endDate: Date
+        if hasTimestamps, let first = sortedLocations.first?.timestamp, let last = sortedLocations.last?.timestamp, last >= first {
+            startDate = first
+            endDate = last
+        } else {
+            startDate = date
+            endDate = date
         }
         
         // Calculate total distance by summing distances between consecutive points
@@ -110,6 +215,32 @@ struct GPXWaypoint: Equatable {
     let elevation: Double?
     let timestamp: Date?
     let symbol: String?
+    // The rest of wptType
+    let comment: String?
+    let source: String?
+    let type: String?
+    let links: [GPXLink]
+    let fix: String?
+    let satellites: Int?
+    let hdop: Double?
+    let vdop: Double?
+    let pdop: Double?
+    let magneticVariation: Double?
+    let geoidHeight: Double?
+    let ageOfDGPSData: Double?
+    let dgpsId: Int?
+    let extensions: [String: String]
+
+    init(name: String, description: String?, coordinate: CLLocationCoordinate2D, elevation: Double?, timestamp: Date?, symbol: String?,
+         comment: String? = nil, source: String? = nil, type: String? = nil, links: [GPXLink] = [], fix: String? = nil,
+         satellites: Int? = nil, hdop: Double? = nil, vdop: Double? = nil, pdop: Double? = nil, magneticVariation: Double? = nil,
+         geoidHeight: Double? = nil, ageOfDGPSData: Double? = nil, dgpsId: Int? = nil, extensions: [String: String] = [:]) {
+        self.name = name; self.description = description; self.coordinate = coordinate; self.elevation = elevation
+        self.timestamp = timestamp; self.symbol = symbol; self.comment = comment; self.source = source; self.type = type
+        self.links = links; self.fix = fix; self.satellites = satellites; self.hdop = hdop; self.vdop = vdop; self.pdop = pdop
+        self.magneticVariation = magneticVariation; self.geoidHeight = geoidHeight; self.ageOfDGPSData = ageOfDGPSData
+        self.dgpsId = dgpsId; self.extensions = extensions
+    }
     
     static func == (lhs: GPXWaypoint, rhs: GPXWaypoint) -> Bool {
         return lhs.name == rhs.name &&
@@ -118,7 +249,8 @@ struct GPXWaypoint: Equatable {
                lhs.coordinate.longitude == rhs.coordinate.longitude &&
                lhs.elevation == rhs.elevation &&
                lhs.timestamp == rhs.timestamp &&
-               lhs.symbol == rhs.symbol
+               lhs.symbol == rhs.symbol &&
+               lhs.comment == rhs.comment && lhs.type == rhs.type && lhs.links == rhs.links
     }
 }
 
@@ -126,13 +258,20 @@ struct GPXFile {
     let filename: String
     let tracks: [GPXTrack]
     let waypoints: [GPXWaypoint]
+    let metadata: GPXMetadata
+    let creator: String?          // <gpx creator="…">
+    let version: String?          // <gpx version="…">, "1.1" or "1.0"
     
-    // Default initializer with empty waypoints
-    init(filename: String, tracks: [GPXTrack], waypoints: [GPXWaypoint] = []) {
+    init(filename: String, tracks: [GPXTrack], waypoints: [GPXWaypoint] = [], metadata: GPXMetadata = GPXMetadata(), creator: String? = nil, version: String? = nil) {
         self.filename = filename
         self.tracks = tracks
         self.waypoints = waypoints
+        self.metadata = metadata
+        self.creator = creator
+        self.version = version
     }
+
+    var routes: [GPXTrack] { tracks.filter { $0.isRoute } }
     
     // Get the "primary" track for backward compatibility
     var primaryTrack: GPXTrack? {
@@ -321,7 +460,7 @@ class GPXParser {
         }
         
         // Log parsing results
-        let resultFile = GPXFile(filename: filename, tracks: namedTracks, waypoints: gpxFile.waypoints)
+        let resultFile = GPXFile(filename: filename, tracks: namedTracks, waypoints: gpxFile.waypoints, metadata: gpxFile.metadata, creator: gpxFile.creator, version: gpxFile.version)
         print("Parsed GPX file \(filename): Found \(resultFile.tracks.count) tracks with \(resultFile.allSegments.count) segments and \(resultFile.waypoints.count) waypoints")
         
         return resultFile
@@ -334,7 +473,7 @@ class GPXParser {
         
         if parser.parse() {
             // Return all parsed tracks and waypoints
-            let result = GPXFile(filename: filename, tracks: delegate.tracks, waypoints: delegate.waypoints)
+            let result = GPXFile(filename: filename, tracks: delegate.tracks, waypoints: delegate.waypoints, metadata: delegate.metadata, creator: delegate.creator, version: delegate.version)
             
             // Success validation - verify we have meaningful data
             if result.tracks.isEmpty && result.waypoints.isEmpty {
@@ -391,338 +530,324 @@ class GPXParser {
     }
 }
 
+// GPX timestamps are ISO 8601. Strava, Garmin and others add fractional seconds; a few
+// exporters omit the zone, which the spec says means UTC. One formatter per shape, shared.
+enum GPXDate {
+    private static let fractional: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]; return f
+    }()
+    private static let plain: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime]; return f
+    }()
+    private static let zoneless: DateFormatter = {
+        let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.timeZone = TimeZone(secondsFromGMT: 0)
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"; return f
+    }()
+    private static let zonelessFractional: DateFormatter = {
+        let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.timeZone = TimeZone(secondsFromGMT: 0)
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"; return f
+    }()
+
+    static func parse(_ text: String) -> Date? {
+        plain.date(from: text) ?? fractional.date(from: text) ?? zoneless.date(from: text) ?? zonelessFractional.date(from: text)
+    }
+}
+
+// Placeholder timestamp for points without <time>; segments carry hasTimestamps = false then
+let gpxMissingTimestamp = Date(timeIntervalSince1970: 0)
+
+// A SAX parser for GPX 1.1 (and the 1.0 differences that matter), reading every element the
+// schema defines: metadata, links, persons, bounds, waypoints with fix quality, routes, tracks,
+// and <extensions> anywhere. Context is an element stack of local names, so a <link> inside a
+// waypoint and a <link> inside a track never get confused, and prefixes (gpxtpx:, gpxx:, ns3:)
+// are ignored on purpose.
 class GPXParserDelegate: NSObject, XMLParserDelegate {
-    private var currentElement = ""
-    
-    // GPX metadata
-    private var gpxMetadataDate = Date()
-    
-    // Current track data
-    private var currentTrackName = ""
-    private var currentTrackType = ""
-    private var currentTrackDate = Date()
-    
-    // Current route data
-    private var currentRouteName = ""
-    private var currentRouteType = ""
-    private var currentRouteDate = Date()
-    
-    // Current waypoint data
-    private var currentWaypointName = ""
-    private var currentWaypointDesc: String?
-    private var currentWaypointSymbol: String?
-    
-    // Track the current element context
-    private var isTrack = false
-    private var isTrackSegment = false
-    private var isTrackPoint = false
-    private var isRoute = false
-    private var isRoutePoint = false
-    private var isMetadata = false
-    private var isWaypoint = false
-    
-    // Data for the current point
-    private var currentLat: Double?
-    private var currentLon: Double?
-    private var currentEle: Double?
-    private var currentTime: Date?
-    
-    // Store segments for the current track
-    private var currentSegmentPoints: [CLLocation] = []
-    private var currentTrackSegments: [GPXTrackSegment] = []
-    
-    // Store points for the current route
-    private var currentRoutePoints: [CLLocation] = []
-    
-    // Store all completed tracks and waypoints
+    // Results
+    private(set) var metadata = GPXMetadata()
+    private(set) var creator: String?
+    private(set) var version: String?
     private var completedTracks: [GPXTrack] = []
     private var completedWaypoints: [GPXWaypoint] = []
-    
-    // Public property to access all parsed tracks
-    var tracks: [GPXTrack] {
-        // Check if we have an in-progress track that needs to be finalized
-        finalizeCurrentTrackIfNeeded()
-        return completedTracks
+
+    var tracks: [GPXTrack] { completedTracks }
+    var waypoints: [GPXWaypoint] { completedWaypoints }
+    var track: GPXTrack? { completedTracks.first }   // legacy single-track accessor
+
+    // Element stack (local names) and the text of the element being read
+    private var path: [String] = []
+    private var text = ""
+
+    // In-progress containers
+    private struct PointBuilder {
+        var lat: Double?, lon: Double?, ele: Double?, time: Date?
+        var sample = SensorSample()
+        var links: [GPXLink] = []
+        var extra: [String: String] = [:]
     }
-    
-    // Public property to access all parsed waypoints
-    var waypoints: [GPXWaypoint] {
-        return completedWaypoints
+    private struct TrackBuilder {
+        var name = "", type = "", cmt: String?, desc: String?, src: String?, number: Int?, date: Date?
+        var links: [GPXLink] = []
+        var extensions: [String: String] = [:]
+        var segments: [GPXTrackSegment] = []
+        var isRoute = false
     }
-    
-    // Finalize the current track if it has any segments with points
-    private func finalizeCurrentTrackIfNeeded() {
-        if !currentTrackSegments.isEmpty && !currentTrackSegments.allSatisfy({ $0.locations.isEmpty }) {
-            let currentTrackIndex = completedTracks.count
-            
-            // Update all segments with the correct track index
-            let segmentsWithTrackIndex = currentTrackSegments.map { segment in
-                GPXTrackSegment(locations: segment.locations, trackIndex: currentTrackIndex)
-            }
-            
-            let track = GPXTrack(
-                name: currentTrackName,
-                type: currentTrackType,
-                date: currentTrackDate.timeIntervalSince1970 > 0 ? currentTrackDate : gpxMetadataDate,
-                segments: segmentsWithTrackIndex
-            )
-            completedTracks.append(track)
-            
-            // Reset current track data
-            currentTrackName = ""
-            currentTrackType = ""
-            currentTrackDate = Date()
-            currentTrackSegments = []
-        }
+    private struct SegmentBuilder {
+        var points: [CLLocation] = []
+        var samples: [SensorSample] = []
+        var hasEle = false, hasTime = false
     }
-    
-    // Finalize the current route if it has any points by converting it to a track
-    private func finalizeCurrentRouteIfNeeded() {
-        if !currentRoutePoints.isEmpty {
-            let currentTrackIndex = completedTracks.count
-            
-            // Create a single segment from all route points
-            let segment = GPXTrackSegment(locations: currentRoutePoints, trackIndex: currentTrackIndex)
-            
-            let track = GPXTrack(
-                name: currentRouteName,
-                type: currentRouteType.isEmpty ? "route" : currentRouteType, // Mark as route if no type specified
-                date: currentRouteDate.timeIntervalSince1970 > 0 ? currentRouteDate : gpxMetadataDate,
-                segments: [segment]
-            )
-            completedTracks.append(track)
-            
-            // Reset current route data
-            currentRouteName = ""
-            currentRouteType = ""
-            currentRouteDate = Date()
-            currentRoutePoints = []
-        }
+    private struct LinkBuilder { var href: String; var text: String?; var type: String? }
+    private struct PersonBuilder { var name: String?; var email: String?; var link: GPXLink? }
+
+    private var point: PointBuilder?
+    private var trackBuilder: TrackBuilder?
+    private var segment: SegmentBuilder?
+    private var link: LinkBuilder?
+    private var author: PersonBuilder?
+    private var emailId: String?, emailDomain: String?
+
+    private var current: String { path.last ?? "" }
+    private var parent: String { path.count > 1 ? path[path.count - 2] : "" }
+    private func inside(_ name: String) -> Bool { path.contains(name) }
+    private var inExtensions: Bool { inside("extensions") }
+    private var inPoint: Bool { point != nil }
+
+    private static func local(_ qualified: String) -> String {
+        qualified.split(separator: ":").last.map(String.init) ?? qualified
     }
-    
-    func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String] = [:]) {
-        currentElement = elementName
-        
-        switch elementName {
-        case "metadata":
-            isMetadata = true
-            
-        case "trk":
-            // If we were already processing a track, finalize it
-            finalizeCurrentTrackIfNeeded()
-            
-            isTrack = true
-            // Reset for new track
-            currentTrackSegments = []
-            currentTrackName = ""
-            currentTrackType = ""
-            currentTrackDate = Date()
-            
-        case "rte":
-            // If we were already processing a route, finalize it
-            finalizeCurrentRouteIfNeeded()
-            
-            isRoute = true
-            // Reset for new route
-            currentRoutePoints = []
-            currentRouteName = ""
-            currentRouteType = ""
-            currentRouteDate = Date()
-            
-        case "trkseg":
-            isTrackSegment = true
-            // Reset current segment points
-            currentSegmentPoints = []
-            
-        case "trkpt":
-            isTrackPoint = true
-            currentLat = Double(attributeDict["lat"] ?? "0")
-            currentLon = Double(attributeDict["lon"] ?? "0")
-            currentEle = nil
-            currentTime = nil
-            
-        case "rtept":
-            isRoutePoint = true
-            currentLat = Double(attributeDict["lat"] ?? "0")
-            currentLon = Double(attributeDict["lon"] ?? "0")
-            currentEle = nil
-            currentTime = nil
-            
-        case "wpt":
-            isWaypoint = true
-            currentLat = Double(attributeDict["lat"] ?? "0")
-            currentLon = Double(attributeDict["lon"] ?? "0")
-            currentEle = nil
-            currentTime = nil
-            currentWaypointName = ""
-            currentWaypointDesc = nil
-            currentWaypointSymbol = nil
-            
-        default:
-            break
-        }
+
+    // Lat/lon are required by the schema; a point without a usable pair is skipped
+    private static func coordinate(from attributes: [String: String]) -> (Double, Double)? {
+        guard let a = attributes["lat"], let b = attributes["lon"], let lat = Double(a), let lon = Double(b),
+              lat >= -90, lat <= 90, lon >= -180, lon <= 180 else { return nil }
+        return (lat, lon)
     }
-    
-    func parser(_ parser: XMLParser, foundCharacters string: String) {
-        let trimmedString = string.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedString.isEmpty else { return }
-        
-        if isTrackPoint {
-            switch currentElement {
-            case "ele":
-                currentEle = Double(trimmedString)
-            case "time":
-                let formatter = ISO8601DateFormatter()
-                currentTime = formatter.date(from: trimmedString)
-            default:
-                break
-            }
-        } else if isRoutePoint {
-            switch currentElement {
-            case "ele":
-                currentEle = Double(trimmedString)
-            case "time":
-                let formatter = ISO8601DateFormatter()
-                currentTime = formatter.date(from: trimmedString)
-            default:
-                break
-            }
-        } else if isWaypoint {
-            switch currentElement {
-            case "ele":
-                currentEle = Double(trimmedString)
-            case "time":
-                let formatter = ISO8601DateFormatter()
-                currentTime = formatter.date(from: trimmedString)
-            case "name":
-                currentWaypointName = trimmedString
-            case "desc":
-                currentWaypointDesc = trimmedString
-            case "sym":
-                currentWaypointSymbol = trimmedString
-            default:
-                break
-            }
-        } else if isTrack {
-            switch currentElement {
-            case "name":
-                currentTrackName = trimmedString
-            case "type":
-                currentTrackType = trimmedString
-            case "time":
-                let formatter = ISO8601DateFormatter()
-                if let date = formatter.date(from: trimmedString) {
-                    currentTrackDate = date
-                }
-            default:
-                break
-            }
-        } else if isRoute {
-            switch currentElement {
-            case "name":
-                currentRouteName = trimmedString
-            case "type":
-                currentRouteType = trimmedString
-            case "time":
-                let formatter = ISO8601DateFormatter()
-                if let date = formatter.date(from: trimmedString) {
-                    currentRouteDate = date
-                }
-            default:
-                break
-            }
-        } else if isMetadata {
-            // Handle metadata elements
-            switch currentElement {
-            case "time":
-                let formatter = ISO8601DateFormatter()
-                if let date = formatter.date(from: trimmedString) {
-                    gpxMetadataDate = date
-                }
-            default:
-                break
-            }
-        }
-    }
-    
-    func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
-        switch elementName {
-        case "metadata":
-            isMetadata = false
-            
-        case "trkpt":
-            if isTrackPoint, let lat = currentLat, let lon = currentLon {
-                let location = CLLocation(
-                    coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
-                    altitude: currentEle ?? 0,
-                    horizontalAccuracy: 10,
-                    verticalAccuracy: 10,
-                    timestamp: currentTime ?? Date()
-                )
-                currentSegmentPoints.append(location)
-            }
-            isTrackPoint = false
-            
-        case "rtept":
-            if isRoutePoint, let lat = currentLat, let lon = currentLon {
-                let location = CLLocation(
-                    coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
-                    altitude: currentEle ?? 0,
-                    horizontalAccuracy: 10,
-                    verticalAccuracy: 10,
-                    timestamp: currentTime ?? Date()
-                )
-                currentRoutePoints.append(location)
-            }
-            isRoutePoint = false
-            
-        case "wpt":
-            if isWaypoint, let lat = currentLat, let lon = currentLon {
-                let waypoint = GPXWaypoint(
-                    name: currentWaypointName.isEmpty ? "POI" : currentWaypointName,
-                    description: currentWaypointDesc,
-                    coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
-                    elevation: currentEle,
-                    timestamp: currentTime,
-                    symbol: currentWaypointSymbol
-                )
-                completedWaypoints.append(waypoint)
-            }
-            isWaypoint = false
-            
-        case "trkseg":
-            // End of segment - add it to the current track's segments
-            if !currentSegmentPoints.isEmpty {
-                // Use a placeholder track index that will be updated in finalizeCurrentTrackIfNeeded
-                let segment = GPXTrackSegment(locations: currentSegmentPoints, trackIndex: -1)
-                currentTrackSegments.append(segment)
-            }
-            isTrackSegment = false
-            
-        case "trk":
-            // End of track - finalize it
-            finalizeCurrentTrackIfNeeded()
-            isTrack = false
-            
-        case "rte":
-            // End of route - finalize it
-            finalizeCurrentRouteIfNeeded()
-            isRoute = false
-            
+
+    func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String: String] = [:]) {
+        let name = Self.local(elementName)
+        path.append(name)
+        text = ""
+
+        switch name {
         case "gpx":
-            // End of file - make sure we've finalized any in-progress track or route
-            finalizeCurrentTrackIfNeeded()
-            finalizeCurrentRouteIfNeeded()
-            
+            creator = attributeDict["creator"]
+            version = attributeDict["version"]
+        case "trk", "rte":
+            finishTrack()
+            trackBuilder = TrackBuilder(isRoute: name == "rte")
+            if name == "rte" { segment = SegmentBuilder() }   // a route is one implicit segment
+        case "trkseg":
+            segment = SegmentBuilder()
+        case "trkpt", "rtept", "wpt":
+            var p = PointBuilder()
+            if let c = Self.coordinate(from: attributeDict) { p.lat = c.0; p.lon = c.1 }
+            point = p
+        case "link":
+            link = LinkBuilder(href: attributeDict["href"] ?? "", text: nil, type: nil)
+        case "author" where inside("metadata"):
+            author = PersonBuilder()
+        case "email" where inside("author"):
+            emailId = attributeDict["id"]; emailDomain = attributeDict["domain"]
+        case "copyright" where inside("metadata"):
+            metadata.copyrightAuthor = attributeDict["author"]
+        case "bounds" where inside("metadata"):
+            if let a = attributeDict["minlat"], let b = attributeDict["minlon"], let c = attributeDict["maxlat"], let d = attributeDict["maxlon"],
+               let minLat = Double(a), let minLon = Double(b), let maxLat = Double(c), let maxLon = Double(d) {
+                metadata.bounds = GPXBounds(minLatitude: minLat, minLongitude: minLon, maxLatitude: maxLat, maxLongitude: maxLon)
+            }
         default:
             break
         }
-        
-        currentElement = ""
     }
-    
-    // Legacy support for single track
-    var track: GPXTrack? {
-        return tracks.first
+
+    func parser(_ parser: XMLParser, foundCharacters string: String) {
+        text += string
+    }
+
+    func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
+        let name = Self.local(elementName)
+        let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        defer { path.removeLast(); text = "" }
+
+        // ---- extension leaves: on points they become sensor fields, elsewhere a dictionary
+        if inExtensions && name != "extensions" {
+            guard !value.isEmpty else { return }          // container element, not a leaf
+            if var p = point {
+                if let v = Double(value) {
+                    switch name {
+                    case "hr", "heartrate", "HeartRate": p.sample.heartRate = v
+                    case "cad", "cadence", "Cadence": p.sample.cadence = v
+                    case "power", "PowerInWatts", "Power": p.sample.power = v
+                    case "atemp", "temp", "temperature", "Temperature", "wtemp": p.sample.temperature = v
+                    case "speed", "Speed": p.sample.speed = v
+                    default: p.extra[name] = value
+                    }
+                } else {
+                    p.extra[name] = value
+                }
+                point = p
+            } else if trackBuilder != nil {
+                trackBuilder!.extensions[name] = value
+            } else if inside("metadata") {
+                metadata.extensions[name] = value
+            }
+            return
+        }
+
+        // ---- link, wherever it sits
+        if name == "link", var l = link {
+            l.href = l.href.isEmpty ? value : l.href      // GPX 1.0 <url> style content
+            let built = GPXLink(href: l.href, text: l.text, type: l.type)
+            link = nil
+            if var p = point { p.links.append(built); point = p }
+            else if var a = author { a.link = built; author = a }
+            else if trackBuilder != nil { trackBuilder!.links.append(built) }
+            else if inside("metadata") { metadata.links.append(built) }
+            return
+        }
+        if link != nil {
+            if name == "text" { link!.text = value }
+            if name == "type" { link!.type = value }
+            return
+        }
+
+        // ---- a point
+        if var p = point {
+            switch name {
+            case "trkpt", "rtept", "wpt":
+                finishPoint(p, kind: name)
+                point = nil
+                return
+            case "ele": p.ele = Double(value)
+            case "time": p.time = GPXDate.parse(value)
+            case "name": p.sample.name = value
+            case "cmt": p.sample.comment = value
+            case "desc": p.sample.description = value
+            case "src": p.sample.source = value
+            case "sym": p.sample.symbol = value
+            case "type": p.sample.type = value
+            case "fix": p.sample.fix = value
+            case "sat": p.sample.satellites = Int(value)
+            case "hdop": p.sample.hdop = Double(value)
+            case "vdop": p.sample.vdop = Double(value)
+            case "pdop": p.sample.pdop = Double(value)
+            case "magvar": p.sample.magneticVariation = Double(value)
+            case "geoidheight": p.sample.geoidHeight = Double(value)
+            case "ageofdgpsdata": p.sample.ageOfDGPSData = Double(value)
+            case "dgpsid": p.sample.dgpsId = Int(value)
+            case "url": p.links.append(GPXLink(href: value, text: nil, type: nil))          // GPX 1.0
+            case "urlname": if let last = p.links.popLast() { p.links.append(GPXLink(href: last.href, text: value, type: last.type)) }
+            default: break
+            }
+            point = p
+            return
+        }
+
+        // ---- segment / track / route
+        if name == "trkseg", let seg = segment {
+            if !seg.points.isEmpty {
+                trackBuilder?.segments.append(GPXTrackSegment(locations: seg.points, trackIndex: -1, samples: seg.samples, hasElevation: seg.hasEle, hasTimestamps: seg.hasTime))
+            }
+            segment = nil
+            return
+        }
+        if trackBuilder != nil {
+            switch name {
+            case "trk", "rte": finishTrack()
+            case "name": trackBuilder!.name = value
+            case "type": trackBuilder!.type = value
+            case "cmt": trackBuilder!.cmt = value
+            case "desc": trackBuilder!.desc = value
+            case "src": trackBuilder!.src = value
+            case "number": trackBuilder!.number = Int(value)
+            case "time": trackBuilder!.date = GPXDate.parse(value)
+            case "url": trackBuilder!.links.append(GPXLink(href: value, text: nil, type: nil))
+            case "urlname": if let last = trackBuilder!.links.popLast() { trackBuilder!.links.append(GPXLink(href: last.href, text: value, type: last.type)) }
+            default: break
+            }
+            return
+        }
+
+        // ---- metadata (1.1) and the 1.0 header fields that sit directly under <gpx>
+        if inside("metadata") || parent == "gpx" {
+            switch name {
+            case "name" where inside("author"): author?.name = value
+            case "name": metadata.name = value
+            case "desc": metadata.description = value
+            case "keywords": metadata.keywords = value
+            case "time": metadata.time = GPXDate.parse(value)
+            case "year" where inside("copyright"): metadata.copyrightYear = value
+            case "license" where inside("copyright"): metadata.copyrightLicense = value
+            case "author":
+                if var a = author {                               // 1.1 person
+                    if let id = emailId, let domain = emailDomain { a.email = "\(id)@\(domain)" }
+                    metadata.author = GPXPerson(name: a.name, email: a.email, link: a.link)
+                    author = nil; emailId = nil; emailDomain = nil
+                } else if !value.isEmpty {                        // 1.0 plain text
+                    metadata.author = GPXPerson(name: value, email: metadata.author?.email, link: nil)
+                }
+            case "name" where inside("author"): author?.name = value
+            case "email" where !inside("author"):                 // GPX 1.0 <email> under <gpx>
+                metadata.author = GPXPerson(name: metadata.author?.name, email: value, link: nil)
+            case "url": metadata.links.append(GPXLink(href: value, text: nil, type: nil))
+            case "urlname": if let last = metadata.links.popLast() { metadata.links.append(GPXLink(href: last.href, text: value, type: last.type)) }
+            default: break
+            }
+        }
+
+        if name == "gpx" { finishTrack() }
+    }
+
+    private func finishPoint(_ p: PointBuilder, kind: String) {
+        guard let lat = p.lat, let lon = p.lon else { return }
+        if kind == "wpt" {
+            completedWaypoints.append(GPXWaypoint(
+                name: (p.sample.name?.isEmpty == false) ? p.sample.name! : "POI",
+                description: p.sample.description,
+                coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
+                elevation: p.ele, timestamp: p.time, symbol: p.sample.symbol,
+                comment: p.sample.comment, source: p.sample.source, type: p.sample.type, links: p.links, fix: p.sample.fix,
+                satellites: p.sample.satellites, hdop: p.sample.hdop, vdop: p.sample.vdop, pdop: p.sample.pdop,
+                magneticVariation: p.sample.magneticVariation, geoidHeight: p.sample.geoidHeight,
+                ageOfDGPSData: p.sample.ageOfDGPSData, dgpsId: p.sample.dgpsId, extensions: p.extra))
+            return
+        }
+        // trkpt / rtept → a CLLocation plus its sample; missing elevation and time are marked, never invented
+        let location = CLLocation(
+            coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
+            altitude: p.ele ?? 0,
+            horizontalAccuracy: p.sample.hdop.map { $0 * 5 } ?? 10,   // hdop × ~5 m is the usual rule of thumb
+            verticalAccuracy: p.ele == nil ? -1 : (p.sample.vdop.map { $0 * 5 } ?? 10),
+            timestamp: p.time ?? gpxMissingTimestamp
+        )
+        var sample = p.sample
+        if !p.links.isEmpty { sample.links = p.links }
+        if !p.extra.isEmpty { sample.extra = p.extra }
+        segment?.points.append(location)
+        segment?.samples.append(sample)
+        if p.ele != nil { segment?.hasEle = true }
+        if p.time != nil { segment?.hasTime = true }
+    }
+
+    private func finishTrack() {
+        guard var t = trackBuilder else { return }
+        if t.isRoute, let seg = segment {
+            if !seg.points.isEmpty {
+                t.segments.append(GPXTrackSegment(locations: seg.points, trackIndex: -1, samples: seg.samples, hasElevation: seg.hasEle, hasTimestamps: seg.hasTime))
+            }
+            segment = nil
+        }
+        trackBuilder = nil
+        guard !t.segments.isEmpty else { return }
+        let index = completedTracks.count
+        let segments = t.segments.map {
+            GPXTrackSegment(locations: $0.locations, trackIndex: index, samples: $0.samples, hasElevation: $0.hasElevation, hasTimestamps: $0.hasTimestamps)
+        }
+        completedTracks.append(GPXTrack(
+            name: t.name,
+            type: t.type.isEmpty && t.isRoute ? "route" : t.type,
+            date: t.date ?? metadata.time ?? segments.first?.locations.first.map { $0.timestamp == gpxMissingTimestamp ? Date() : $0.timestamp } ?? Date(),
+            segments: segments,
+            comment: t.cmt, description: t.desc, source: t.src, links: t.links, number: t.number, isRoute: t.isRoute, extensions: t.extensions))
     }
 }
