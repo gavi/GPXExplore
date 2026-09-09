@@ -96,6 +96,9 @@ struct RouteInfoOverlay: View {
                     } label: {
                         Text("Splits, per \(metric ? "km" : "mi")")
                             .font(.subheadline)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                            .onTapGesture { withAnimation { splitsExpanded.toggle() } }
                     }
                 }
             }
@@ -147,7 +150,17 @@ struct RouteInfoOverlay: View {
         .accessibilityHidden(true)
     }
 
+    // Scrolls inside a fixed height: a bare frame(maxHeight:) let a long table draw over
+    // the label and the chevron, which made the group impossible to collapse
     private var splitsTable: some View {
+        ScrollView(.vertical) {
+            splitsRows
+        }
+        .frame(maxHeight: 160)
+        .padding(.top, 4)
+    }
+
+    private var splitsRows: some View {
         VStack(spacing: 2) {
             HStack {
                 Text("#").frame(width: 28, alignment: .leading)
@@ -168,8 +181,6 @@ struct RouteInfoOverlay: View {
                 .font(.caption.monospacedDigit())
             }
         }
-        .padding(.top, 4)
-        .frame(maxHeight: 160)
     }
 
     private func splitPaceText(_ split: TrackStatistics.Split) -> String {

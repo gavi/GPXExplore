@@ -79,6 +79,7 @@ struct ElevationOverlay: View {
         let elevation: Double     // the plotted value, in display units, whatever the metric
         let index: Int
         let originalIndex: Int    // Original index in the flattened locations array
+        let segment: Int          // which segment; the chart draws one series per segment so joins are not lines
         var id: Int { index }
     }
 
@@ -132,17 +133,30 @@ struct ElevationOverlay: View {
         }
         let strideSize = calculateStrideSize(for: locations.count)
         let toDisplay = useMetric ? 1.0 / 1000.0 : 1.0 / 1609.34
+        var segmentOf: [Int] = []
+        segmentOf.reserveCapacity(locations.count)
+        for (k, seg) in trackSegments.enumerated() { segmentOf += Array(repeating: k, count: seg.locations.count) }
 
         var points: [ElevationPoint] = []
         points.reserveCapacity(locations.count / strideSize + 2)
         var lo = Double.greatestFiniteMagnitude, hi = -Double.greatestFiniteMagnitude
         func add(_ i: Int) {
             guard let v = value(at: i, locations: locations, samples: samples, eleValid: eleValid) else { return }
-            points.append(ElevationPoint(distance: distances[i] * toDisplay, elevation: v, index: points.count, originalIndex: i))
+            points.append(ElevationPoint(distance: distances[i] * toDisplay, elevation: v, index: points.count, originalIndex: i, segment: segmentOf[i]))
             lo = Swift.min(lo, v); hi = Swift.max(hi, v)
         }
         for i in stride(from: 0, to: locations.count, by: strideSize) { add(i) }
-        if strideSize > 1, let last = points.last, last.originalIndex != locations.count - 1 { add(locations.count - 1) }
+        // Striding must not skip a segment's first and last point, or short segments vanish
+        if strideSize > 1 {
+            var offset = 0
+            for seg in trackSegments {
+                let first = offset, last = offset + seg.locations.count - 1
+                offset += seg.locations.count
+                for i in [first, last] where i >= 0 && i % strideSize != 0 && !points.contains(where: { $0.originalIndex == i }) { add(i) }
+            }
+            points.sort { $0.originalIndex < $1.originalIndex }
+            points = points.enumerated().map { ElevationPoint(distance: $1.distance, elevation: $1.elevation, index: $0, originalIndex: $1.originalIndex, segment: $1.segment) }
+        }
         if points.isEmpty { lo = 0; hi = 0 }
         return Series(points: points, min: lo, max: hi, unit: unit)
     }
@@ -338,12 +352,17 @@ struct OptimizedElevationChartView: View {
 
     var body: some View {
         Chart {
+            // One series per segment: no line or fill is drawn between the end of one segment
+            // and the start of the next (they share an x, so a joined line is a vertical edge
+            // and the folded fill leaves a hole)
             ForEach(points) { point in
-                AreaMark(x: .value("Distance", point.distance), y: .value("Value", point.elevation))
+                AreaMark(x: .value("Distance", point.distance), y: .value("Value", point.elevation),
+                         series: .value("Segment", point.segment), stacking: .unstacked)
                     .foregroundStyle(areaGradient)
             }
             ForEach(points) { point in
-                LineMark(x: .value("Distance", point.distance), y: .value("Value", point.elevation))
+                LineMark(x: .value("Distance", point.distance), y: .value("Value", point.elevation),
+                         series: .value("Segment", point.segment))
                     .foregroundStyle(lineGradient)
                     .lineStyle(StrokeStyle(lineWidth: 2))
             }
