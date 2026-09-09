@@ -121,7 +121,78 @@ enum GPXDate {
     private static let fractional: ISO8601DateFormatter = { let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]; return f }()
     private static let plain: ISO8601DateFormatter = { let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime]; return f }()
     private static let zoneless: DateFormatter = { let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.timeZone = TimeZone(secondsFromGMT: 0); f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"; return f }()
-    static func parse(_ text: String) -> Date? { plain.date(from: text) ?? fractional.date(from: text) ?? zoneless.date(from: text) }
+    static func parse(_ text: String) -> Date? { fast(text) ?? plain.date(from: text) ?? fractional.date(from: text) ?? zoneless.date(from: text) }
+
+    // The formatters cost ~60 µs a call through ICU, which made a 16,000-point ride take a
+    // second to open. This reads the shapes every GPX writer uses — yyyy-MM-ddTHH:mm:ss, an
+    // optional fraction, then Z, ±HH:MM, ±HHMM or nothing (UTC) — with integer maths, and
+    // leaves anything else to the formatters.
+    static func fast(_ text: String) -> Date? {
+        let u = Array(text.utf8)
+        let n = u.count
+        guard n >= 19 else { return nil }
+        func num(_ at: Int, _ count: Int) -> Int? {
+            guard at + count <= n else { return nil }
+            var v = 0
+            for k in at..<(at + count) {
+                let c = u[k]
+                guard c >= 48, c <= 57 else { return nil }
+                v = v * 10 + Int(c - 48)
+            }
+            return v
+        }
+        guard u[4] == 45, u[7] == 45, u[10] == 84 || u[10] == 116 || u[10] == 32, u[13] == 58, u[16] == 58,
+              let year = num(0, 4), let month = num(5, 2), let day = num(8, 2),
+              let hour = num(11, 2), let minute = num(14, 2), let second = num(17, 2),
+              (1...12).contains(month), (1...31).contains(day), hour <= 24, minute <= 59, second <= 60 else { return nil }
+        var i = 19
+        var fraction = 0.0
+        if i < n, u[i] == 46 || u[i] == 44 {
+            i += 1
+            var scale = 0.1
+            var digits = 0
+            while i < n, u[i] >= 48, u[i] <= 57 {
+                fraction += Double(u[i] - 48) * scale
+                scale /= 10
+                i += 1
+                digits += 1
+            }
+            guard digits > 0 else { return nil }
+        }
+        var offset = 0
+        if i < n {
+            let c = u[i]
+            if c == 90 || c == 122 {
+                i += 1
+            } else if c == 43 || c == 45 {
+                let sign = c == 43 ? 1 : -1
+                i += 1
+                guard let oh = num(i, 2), oh <= 14 else { return nil }
+                i += 2
+                var om = 0
+                if i < n, u[i] == 58 { i += 1 }
+                if i < n {
+                    guard let m = num(i, 2), m <= 59 else { return nil }
+                    om = m
+                    i += 2
+                }
+                offset = sign * (oh * 3600 + om * 60)
+            } else {
+                return nil
+            }
+        }
+        guard i == n else { return nil }
+        // Days since 1970-01-01 from the civil date (Howard Hinnant's algorithm), no calendar object
+        let y = month <= 2 ? year - 1 : year
+        let era = (y >= 0 ? y : y - 399) / 400
+        let yoe = y - era * 400
+        let doy = (153 * (month + (month > 2 ? -3 : 9)) + 2) / 5 + day - 1
+        let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy
+        let days = era * 146097 + doe - 719468
+        let seconds = Double(days) * 86400 + Double(hour * 3600 + minute * 60 + second - offset) + fraction
+        return Date(timeIntervalSince1970: seconds)
+    }
+
 }
 let gpxMissingTimestamp = Date(timeIntervalSince1970: 0)
 
@@ -301,7 +372,7 @@ class GPXParserDelegate: NSObject, XMLParserDelegate {
         if isTrackPoint {
             switch currentElement {
             case "ele":
-                currentEle = Double(trimmedString)
+                currentEle = Double(trimmedString).flatMap { abs($0) < 9000 ? $0 : nil }   // 9999 = no data
             case "time":
                 currentTime = GPXDate.parse(trimmedString)
             default:
@@ -310,7 +381,7 @@ class GPXParserDelegate: NSObject, XMLParserDelegate {
         } else if isRoutePoint {
             switch currentElement {
             case "ele":
-                currentEle = Double(trimmedString)
+                currentEle = Double(trimmedString).flatMap { abs($0) < 9000 ? $0 : nil }   // 9999 = no data
             case "time":
                 currentTime = GPXDate.parse(trimmedString)
             default:
@@ -319,7 +390,7 @@ class GPXParserDelegate: NSObject, XMLParserDelegate {
         } else if isWaypoint {
             switch currentElement {
             case "ele":
-                currentEle = Double(trimmedString)
+                currentEle = Double(trimmedString).flatMap { abs($0) < 9000 ? $0 : nil }   // 9999 = no data
             case "time":
                 currentTime = GPXDate.parse(trimmedString)
             case "name":
@@ -395,7 +466,7 @@ class GPXParserDelegate: NSObject, XMLParserDelegate {
                     altitude: currentEle ?? 0,
                     horizontalAccuracy: 10,
                     verticalAccuracy: currentEle == nil ? -1 : 10,
-                    timestamp: currentTime ?? gpxMissingTimestamp
+                    timestamp: gpxMissingTimestamp   // a route point's <time> is a creation stamp, not a recording
                 )
                 currentRoutePoints.append(location)
             }

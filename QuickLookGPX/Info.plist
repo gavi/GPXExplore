@@ -7,8 +7,6 @@
 		<dict>
 			<key>CFBundleTypeName</key>
 			<string>GPS Exchange Format</string>
-			<key>CFBundleTypeIconFile</key>
-			<string>GPXDocumentIcon</string>
 			<key>LSHandlerRank</key>
 			<string>Alternate</string>
 			<key>LSItemContentTypes</key>
@@ -46,15 +44,6 @@
 			</array>
 			<key>UTTypeDescription</key>
 			<string>GPS Exchange Format (GPX)</string>
-			<key>UTTypeIconFiles</key>
-			<array>
-				<string>GPXDocument_320.png</string>
-			</array>
-			<key>UTTypeIcons</key>
-			<dict>
-				<key>UTTypeIconBadgeName</key>
-				<string>GPXDocumentIcon</string>
-			</dict>
 			<key>UTTypeIdentifier</key>
 			<string>com.topografix.gpx</string>
 			<key>UTTypeTagSpecification</key>

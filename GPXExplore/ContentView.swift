@@ -295,7 +295,7 @@ struct ContentView: View {
         let segmentsToDraw = visibleTrackSegments
         let wantsChart = stats.hasElevation || stats.heartRate != nil || stats.hasTimestamps
         let chartImage: CGImage? = wantsChart
-            ? MapImageExporter.renderChart(ElevationOverlay(trackSegments: segmentsToDraw, stats: stats, metric: .constant(chartMetric)).environmentObject(settings), width: 800, height: 160)
+            ? MapImageExporter.renderChart(ElevationOverlay(trackSegments: segmentsToDraw, stats: stats, metric: .constant(chartMetric), showsHeader: false).environmentObject(settings), width: 800, height: 160)
             : nil
         var subtitle = StatsFormat.distance(stats.distance, metric: settings.useMetricSystem)
         if let moving = stats.movingTime { subtitle += "  ·  \(StatsFormat.duration(moving)) moving" }

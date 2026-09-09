@@ -16,7 +16,6 @@
 			<key>LSItemContentTypes</key>
 			<array>
 				<string>com.topografix.gpx</string>
-				<string>public.xml</string>
 			</array>
 			<key>LSSupportsQuickLook</key>
 			<true/>
@@ -115,13 +114,8 @@
 			<string>GPS Exchange Format (GPX)</string>
 			<key>UTTypeIconFiles</key>
 			<array>
-				<string>GPXDocument_320.png</string>
+				<string>GPXDocumentIcon.icns</string>
 			</array>
-			<key>UTTypeIcons</key>
-			<dict>
-				<key>UTTypeIconBadgeName</key>
-				<string>GPXDocumentIcon</string>
-			</dict>
 			<key>UTTypeIdentifier</key>
 			<string>com.topografix.gpx</string>
 			<key>UTTypeTagSpecification</key>

@@ -8,9 +8,11 @@ store notes; read it first.
 - Build (Mac): `xcodebuild -project GPXExplore.xcodeproj -scheme GPXExplore -destination 'platform=macOS' build`
 - Build (iOS simulator): `xcodebuild -project GPXExplore.xcodeproj -scheme GPXExplore -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max' build`
 - Run the Mac app on a file: `open -a <built .app> file.gpx` (ad-hoc signing: `CODE_SIGN_IDENTITY="-"`)
-- Parser/statistics check without Xcode: compile `GPXExplore/Utils/GPXParser.swift` and
-  `GPXExplore/Models/TrackStatistics.swift` with `swiftc -framework CoreLocation` plus a `main.swift`
-  and a stub `GPXWorkout`; the 1.5 harness in the session scratchpad did exactly that.
+- Parser/statistics check without Xcode: `../tools/gpxcheck/run.sh ../samples/public/*.gpx`
+  compiles `Utils/GPXParser.swift` and `Models/TrackStatistics.swift` with a small `main.swift`
+  and prints one block per file (points, flags, times, elevation, sensors, splits, parse time).
+  `../samples/README.md` says what each file exercises and lists the expected numbers. Run it
+  after any change to those two files.
 - There is no test target yet (planned).
 
 ## App Functionality
@@ -28,13 +30,21 @@ store notes; read it first.
   `hasTimestamps`), `GPXWaypoint` (full wptType), `SensorSample` (heart rate, cadence, power,
   temperature, speed, plus every other trkpt field and unknown extension leaves).
 - **Parser**: one `XMLParser` delegate with an element stack of local names; namespace prefixes
-  are ignored; `GPXDate` handles ISO 8601 with/without fractional seconds and zone-less stamps.
-  Missing `<ele>` → `verticalAccuracy = -1`; missing `<time>` → `gpxMissingTimestamp` (epoch 0);
-  the segment flags say which. Points without valid lat/lon are skipped. Nothing is fabricated.
+  are ignored; `GPXDate.fast` reads ISO 8601 (fraction, Z, ±HH:MM, zone-less = UTC) with integer
+  maths and falls back to the formatters, which cost ~60 µs a call and made big files take a
+  second. Missing `<ele>` → `verticalAccuracy = -1` (so does the 9999 sentinel); missing `<time>`
+  → `gpxMissingTimestamp` (epoch 0); segment flags say whether *any* point had them, validity is
+  per point. Route points are never timed (their `<time>` is a creation stamp). Points without
+  valid lat/lon are skipped. Nothing is fabricated.
 - **Statistics** (`Models/TrackStatistics.swift`): computed once per change of the visible
-  segments and cached in `ContentView` state; distance prefix sums (the chart's x axis), moving
-  time (gaps > 30 s or slower than 0.5 m/s excluded), speeds, pace, gain/loss (1 m threshold),
-  sensor averages, splits. `StatsFormat` formats pace/speed/duration/elevation/distance.
+  segments and cached in `ContentView` state. Distance prefix sums (the chart's x axis); a
+  timed interval needs valid stamps at both ends, same segment, clock moving forward; a stop is
+  slower than 0.5 m/s over a window of at least 5 s (`speeds` holds that windowed speed per
+  point, the chart uses it too; max speed is a median of five of them); average speed/pace =
+  timed distance over moving time; elapsed
+  skips gaps over a day; gain/loss accumulate with 1.5 m hysteresis; cadence ignores zeros;
+  splits. Every rule has a file in `../samples` behind it. `StatsFormat` formats
+  pace/speed/duration/elevation/distance.
 - **Views**: `ContentView` (state, toolbar, share/export, shortcuts) → `MapView` (MKMapView
   representable per platform; `MapView+Common.swift` has `ElevationPolyline`, the two renderers,
   annotations), `RouteInfoOverlay` (the card), `ElevationOverlay` (chart + `ChartMetric` picker),
@@ -46,6 +56,10 @@ store notes; read it first.
   frame is then autosaved and restored (`GPXExploreDocumentWindow`).
 - Settings are `UserDefaults`-backed in `SettingsModel`; the map renderers also read the
   visualization mode and line width straight from `UserDefaults`.
+- **Document type** (`GPXExplore/Info.plist`): exports `com.topografix.gpx` and claims it as
+  Owner with `GPXDocumentIcon.icns` (a loose resource; source art in `Design/`, rebuild with
+  `iconutil -c icns Design/GPXDocumentIcon.iconset`). Do not put an `.iconset` in the asset
+  catalog (it is ignored) and do not claim `public.xml`.
 
 ## Code Style Guidelines
 - **Imports**: Group imports by framework (SwiftUI, MapKit, etc.) with Foundation first

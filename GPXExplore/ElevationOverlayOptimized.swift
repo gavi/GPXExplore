@@ -59,8 +59,13 @@ struct ElevationOverlay: View {
     @Binding var selectedPointIndex: Int?
     @Binding var zoomRange: ClosedRange<Double>?
 
+    // False when rendering for the exported image: no title, picker or zoom controls, just the numbers and the chart
+    let showsHeader: Bool
+
     init(trackSegments: [GPXTrackSegment], stats: TrackStatistics, metric: Binding<ChartMetric>,
-         selectedPointIndex: Binding<Int?> = .constant(nil), zoomRange: Binding<ClosedRange<Double>?> = .constant(nil)) {
+         selectedPointIndex: Binding<Int?> = .constant(nil), zoomRange: Binding<ClosedRange<Double>?> = .constant(nil),
+         showsHeader: Bool = true) {
+        self.showsHeader = showsHeader
         self.trackSegments = trackSegments
         self.stats = stats
         self._metric = metric
@@ -99,14 +104,8 @@ struct ElevationOverlay: View {
             guard let c = samples[i].temperature else { return nil }
             return useMetric ? c : c * 9 / 5 + 32
         case .speed:
-            var mps = samples[i].speed
-            if mps == nil, i > 0, stats.hasTimestamps {
-                // derive from the previous point when the file did not record speed
-                let dt = locations[i].timestamp.timeIntervalSince(locations[i - 1].timestamp)
-                let dd = stats.cumulativeDistances[i] - stats.cumulativeDistances[i - 1]
-                if dt > 0 && dt <= TrackStatistics.pauseGap { mps = dd / dt }
-            }
-            guard let v = mps else { return nil }
+            // recorded speed when the file has it, else the same windowed speed the statistics use
+            guard let v = samples[i].speed ?? stats.speeds[i] else { return nil }
             return useMetric ? v * 3.6 : v * 2.23694
         }
     }
@@ -156,6 +155,7 @@ struct ElevationOverlay: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
+                        if showsHeader {
                         HStack(spacing: 8) {
                             Text(metric == .elevation ? "Elevation Profile" : metric.rawValue)
                                 .font(.headline)
@@ -170,6 +170,7 @@ struct ElevationOverlay: View {
                                 .fixedSize()
                                 .accessibilityLabel("Chart metric")
                             }
+                        }
                         }
 
                         HStack(spacing: 16) {
@@ -204,7 +205,7 @@ struct ElevationOverlay: View {
                     Spacer()
 
                     // Zoom indicator and reset button
-                    if zoomRange != nil {
+                    if showsHeader, zoomRange != nil {
                         HStack(spacing: 6) {
                             HStack(spacing: 4) {
                                 Image(systemName: "magnifyingglass")
