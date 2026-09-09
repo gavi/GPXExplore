@@ -23,7 +23,7 @@ A cross-platform macOS/iOS application for viewing GPX track files on a map with
 Clone the repository and open the Xcode project:
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/gavi/GPXExplore.git
 cd GPXExplore
 open GPXExplore.xcodeproj
 ```

@@ -1,0 +1,18 @@
+{
+  "locale": "en-US",
+  "app_info": {
+    "name": "GPXExplore: GPX Track Viewer",
+    "subtitle": "GPX Track Viewer",
+    "privacyPolicyUrl": "https://objectgraph.com/privacy",
+    "privacyChoicesUrl": null
+  },
+  "version": {
+    "versionString": "1.4",
+    "description": "Visualize your outdoor adventures with GPXExplore, a lightweight and intuitive GPX track viewer for iOS.\n\n  View your hiking, cycling, running, and other GPS tracks with our elegant elevation-based gradient coloring that instantly shows climbs and descents. Open any standard GPX file to see your routes displayed\n   on an interactive map with comprehensive statistics.\n\n  Key Features:\n\n  • Simple, read-only GPX file viewer\n  • Intuitive map interface with elevation visualization\n  • Color-coded tracks based on elevation changes\n  • Detailed route statistics\n  • Universal app for iPhone, iPad, and Mac\n\n  Perfect for outdoor enthusiasts who want to revisit their adventures or plan new ones using existing GPX tracks.",
+    "keywords": "  GPX viewer, GPS tracks, hiking, cycling, trail maps, elevation, routes, outdoor, adventure",
+    "whatsNew": "- Elevation chart optimization\n- Show current locaiton",
+    "promotionalText": null,
+    "supportUrl": "https://objectgraph.com",
+    "marketingUrl": null
+  }
+}
