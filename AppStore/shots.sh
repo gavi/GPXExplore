@@ -72,7 +72,7 @@ capture_sim() {   # $1 = device name, $2 = output folder
   xcrun simctl boot $udid 2>/dev/null || true
   xcrun simctl bootstatus $udid -b >/dev/null
   xcrun simctl install $udid $SIM_APP
-  xcrun simctl ui $udid appearance light
+  xcrun simctl ui $udid appearance dark   # dark, like the Mac captures: Gavi wants dark boards and site shots
   xcrun simctl status_bar $udid override --time "9:41" --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 --operatorName "" >/dev/null 2>&1 || true
   for scene in $scenes; do
     local name=${scene%%|*}; local rest=${scene#*|}; local file=${rest%%|*}; local extra=${rest#*|}
