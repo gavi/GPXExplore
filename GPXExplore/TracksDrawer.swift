@@ -15,6 +15,14 @@ struct TracksDrawer: View {
     @Binding var waypointsVisible: Bool
     @Binding var selectedWaypointIndex: Int
     @EnvironmentObject var settings: SettingsModel
+
+    // Beside the map (iPad, Mac) the drawer is a 280-point panel; in the phone's sheet it fills the width
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    private var compact: Bool { sizeClass == .compact }
+    #else
+    private var compact: Bool { false }
+    #endif
     
     // Optional closure to call when a waypoint is selected
     var onWaypointSelected: ((CLLocationCoordinate2D) -> Void)?
@@ -182,12 +190,13 @@ struct TracksDrawer: View {
                 .padding(.vertical, 8)
             }
         }
-        .frame(width: 280)
+        .frame(width: compact ? nil : 280)
+        .frame(maxWidth: compact ? .infinity : nil, alignment: .leading)
         #if os(iOS)
         .background(Color(UIColor.systemBackground))
         .overlay(
             Rectangle()
-                .frame(width: 1, height: nil, alignment: .leading)
+                .frame(width: compact ? 0 : 1, height: nil, alignment: .leading)
                 .foregroundColor(Color(UIColor.separator))
                 .opacity(0.5),
             alignment: .leading
