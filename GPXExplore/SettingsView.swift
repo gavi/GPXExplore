@@ -265,6 +265,18 @@ struct SettingsView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+
+            // The other half of the workflow: the app that writes the files this one reads
+            Section(header: Text("Also from ObjectGraph")) {
+                Link(destination: URL(string: "https://apps.apple.com/app/workoutgpx/id6743941036?pt=objectgraph&ct=gpxexplore-settings")!) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("WorkoutGPX").font(.body)
+                        Text("Turn any Apple Health workout into a GPX file, with heart rate, cadence and power. Free.")
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
         }
         .navigationTitle("Settings")
         #endif

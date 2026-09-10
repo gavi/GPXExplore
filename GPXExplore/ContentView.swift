@@ -88,6 +88,7 @@ struct ContentView: View {
                             chartMetric = m
                         }
                         if UserDefaults.standard.bool(forKey: "showTracksDrawer") { isTracksDrawerOpen = true }
+                        ReviewPrompt.goodMoment()   // a file on the map is the moment worth asking after
                     }
                     .onChange(of: chartMetric) { _, new in UserDefaults.standard.set(new.rawValue, forKey: "chartMetric") }
                     .onChange(of: document.trackSegments.count) { _, _ in updateFromDocument() }
@@ -336,6 +337,7 @@ struct ContentView: View {
         )
         do {
             exportedImageURL = try await MapImageExporter.export(segments: segmentsToDraw, stats: stats, chartImage: chartImage, options: options)
+            ReviewPrompt.goodMoment()
         } catch {
             exportError = "The map could not be rendered. \(error.localizedDescription)"
         }
