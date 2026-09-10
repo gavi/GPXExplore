@@ -1,5 +1,15 @@
 import SwiftUI
 import MapKit
+
+// Titles of the route markers. The title doubles as the marker's identity in the annotation
+// list (the filters and the view factory compare it), so every site uses these constants and
+// never a literal; the user sees them in the callouts, so they are localized.
+enum MarkerTitle {
+    static let start = String(localized: "Start")
+    static let end = String(localized: "End")
+    static let peak = String(localized: "Peak")
+    static let valley = String(localized: "Valley")
+}
 import CoreLocation
 
 #if os(iOS)
@@ -646,7 +656,7 @@ extension MapViewShared {
             annotation.coordinate = routeLocations[point.index].coordinate
             
             let elevationFormatted = Int(round(point.elevation))
-            annotation.title = point.isMax ? "Peak" : "Valley"
+            annotation.title = point.isMax ? MarkerTitle.peak : MarkerTitle.valley
             annotation.subtitle = "\(elevationFormatted)m"
             
             mapView.addAnnotation(annotation)
@@ -904,33 +914,33 @@ class Coordinator: NSObject, MKMapViewDelegate {
                 markerView.displayPriority = .defaultHigh
             }
             // Set appearance based on annotation type for track markers
-            else if annotation.title == "Start" {
+            else if annotation.title == MarkerTitle.start {
                 markerView.markerTintColor = .green
 #if os(iOS)
                 markerView.glyphImage = UIImage(systemName: "flag.fill")
 #elseif os(macOS)
                 // Use SF Symbols on macOS 11+
                 if #available(macOS 11.0, *) {
-                    markerView.glyphImage = NSImage(systemSymbolName: "flag.fill", accessibilityDescription: "Start")
+                    markerView.glyphImage = NSImage(systemSymbolName: "flag.fill", accessibilityDescription: MarkerTitle.start)
                 } else {
                     // Fallback for older macOS versions
                     markerView.glyphText = "S"
                 }
 #endif
-            } else if annotation.title == "End" {
+            } else if annotation.title == MarkerTitle.end {
                 markerView.markerTintColor = .red
 #if os(iOS)
                 markerView.glyphImage = UIImage(systemName: "flag.checkered")
 #elseif os(macOS)
                 // Use SF Symbols on macOS 11+
                 if #available(macOS 11.0, *) {
-                    markerView.glyphImage = NSImage(systemSymbolName: "flag.checkered", accessibilityDescription: "End")
+                    markerView.glyphImage = NSImage(systemSymbolName: "flag.checkered", accessibilityDescription: MarkerTitle.end)
                 } else {
                     // Fallback for older macOS versions
                     markerView.glyphText = "E"
                 }
 #endif
-            } else if annotation.title == "Peak" {
+            } else if annotation.title == MarkerTitle.peak {
                 markerView.markerTintColor = .orange
 #if os(iOS)
                 markerView.glyphImage = UIImage(systemName: "arrow.up")
@@ -938,7 +948,7 @@ class Coordinator: NSObject, MKMapViewDelegate {
                 markerView.glyphText = "▲"
 #endif
                 markerView.displayPriority = .defaultLow // Lower priority to avoid clutter
-            } else if annotation.title == "Valley" {
+            } else if annotation.title == MarkerTitle.valley {
                 markerView.markerTintColor = .blue
 #if os(iOS)
                 markerView.glyphImage = UIImage(systemName: "arrow.down")

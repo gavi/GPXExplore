@@ -15,6 +15,8 @@ enum ReviewPrompt {
 
     static func goodMoment() {
         let defaults = UserDefaults.standard
+        // `-reviewPromptDisabled YES` at launch: the screenshot pipeline must never capture the prompt
+        guard !defaults.bool(forKey: "reviewPromptDisabled") else { return }
         let moments = defaults.integer(forKey: momentsKey) + 1
         defaults.set(moments, forKey: momentsKey)
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"

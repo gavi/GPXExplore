@@ -17,6 +17,7 @@ struct MacWindowSizer: NSViewRepresentable {
 
     final class SizerView: NSView {
         private var applied = false
+        private var guardToken: NSObjectProtocol?
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
@@ -30,7 +31,29 @@ struct MacWindowSizer: NSViewRepresentable {
                 }
                 // From here on, every resize or move is saved and restored automatically
                 window.setFrameAutosaveName(MacWindowSizer.autosaveName)
+                guard saved else { return }
+                // SwiftUI's own sizing pass sometimes lands after this one and the window
+                // opens at the default document size instead of the remembered frame. For
+                // the first moments, put the remembered frame back when anything but a live
+                // drag changes it; nobody has had time to resize by hand yet.
+                let wanted = window.frame
+                let deadline = Date().addingTimeInterval(3)
+                self.guardToken = NotificationCenter.default.addObserver(
+                    forName: NSWindow.didResizeNotification, object: window, queue: .main
+                ) { [weak self, weak window] _ in
+                    guard let self, let window else { return }
+                    if Date() > deadline { self.stopGuarding(); return }
+                    if !window.inLiveResize, window.frame != wanted {
+                        window.setFrame(wanted, display: true, animate: false)
+                    }
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { self.stopGuarding() }
             }
+        }
+
+        private func stopGuarding() {
+            if let token = guardToken { NotificationCenter.default.removeObserver(token) }
+            guardToken = nil
         }
     }
 }

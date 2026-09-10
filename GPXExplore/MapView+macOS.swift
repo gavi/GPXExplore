@@ -146,11 +146,11 @@ struct MapView: NSViewRepresentable, MapViewShared {
                 
                 let startPoint = MKPointAnnotation()
                 startPoint.coordinate = firstLocation.coordinate
-                startPoint.title = "Start"
+                startPoint.title = MarkerTitle.start
                 
                 let endPoint = MKPointAnnotation()
                 endPoint.coordinate = lastLocation.coordinate
-                endPoint.title = "End"
+                endPoint.title = MarkerTitle.end
                 
                 mapView.addAnnotations([startPoint, endPoint])
             }
@@ -192,7 +192,7 @@ struct MapView: NSViewRepresentable, MapViewShared {
         let existingHoverAnnotations = mapView.annotations.filter { $0.title == "Hover Point" }
         let existingWaypointAnnotations = mapView.annotations.filter { $0 is WaypointAnnotation }
         let existingMarkerAnnotations = mapView.annotations.filter {
-            $0.title == "Start" || $0.title == "End" || $0.title == "Peak" || $0.title == "Valley"
+            $0.title == MarkerTitle.start || $0.title == MarkerTitle.end || $0.title == MarkerTitle.peak || $0.title == MarkerTitle.valley
         }
         let existingHoverAnnotation = existingHoverAnnotations.first
 
@@ -322,11 +322,11 @@ struct MapView: NSViewRepresentable, MapViewShared {
 
                 let startPoint = MKPointAnnotation()
                 startPoint.coordinate = firstLocation.coordinate
-                startPoint.title = "Start"
+                startPoint.title = MarkerTitle.start
 
                 let endPoint = MKPointAnnotation()
                 endPoint.coordinate = lastLocation.coordinate
-                endPoint.title = "End"
+                endPoint.title = MarkerTitle.end
 
                 mapView.addAnnotations([startPoint, endPoint])
             }

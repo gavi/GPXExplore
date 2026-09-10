@@ -1,127 +1,701 @@
 {
-  "#": {"de": "#", "fr": "#", "es": "#", "ja": "#"},
-  "%@ %@": {"de": "%@ %@", "fr": "%@ %@", "es": "%@ %@", "ja": "%@ %@"},
-  "%@ profile, %lld to %lld %@": {"de": "%@-Profil, %lld bis %lld %@", "fr": "Profil %@, de %lld à %lld %@", "es": "Perfil de %@, de %lld a %lld %@", "ja": "%@のプロファイル、%lld〜%lld %@"},
-  "%@, %@. Show details": {"de": "%@, %@. Details anzeigen", "fr": "%@, %@. Afficher les détails", "es": "%@, %@. Mostrar detalles", "ja": "%@、%@。詳細を表示"},
-  "%@-%@%@": {"de": "%@–%@ %@", "fr": "%@–%@ %@", "es": "%@–%@ %@", "ja": "%@〜%@ %@"},
-  "%lld": {"de": "%lld", "fr": "%lld", "es": "%lld", "ja": "%lld"},
-  "%lld %@": {"de": "%lld %@", "fr": "%lld %@", "es": "%lld %@", "ja": "%lld %@"},
+  "#": {
+    "de": "#",
+    "fr": "#",
+    "es": "#",
+    "ja": "#"
+  },
+  "%@ %@": {
+    "de": "%@ %@",
+    "fr": "%@ %@",
+    "es": "%@ %@",
+    "ja": "%@ %@"
+  },
+  "%@ profile, %lld to %lld %@": {
+    "de": "%@-Profil, %lld bis %lld %@",
+    "fr": "Profil %@, de %lld à %lld %@",
+    "es": "Perfil de %@, de %lld a %lld %@",
+    "ja": "%@のプロファイル、%lld〜%lld %@"
+  },
+  "%@, %@. Show details": {
+    "de": "%@, %@. Details anzeigen",
+    "fr": "%@, %@. Afficher les détails",
+    "es": "%@, %@. Mostrar detalles",
+    "ja": "%@、%@。詳細を表示"
+  },
+  "%@-%@%@": {
+    "de": "%@–%@ %@",
+    "fr": "%@–%@ %@",
+    "es": "%@–%@ %@",
+    "ja": "%@〜%@ %@"
+  },
+  "%lld": {
+    "de": "%lld",
+    "fr": "%lld",
+    "es": "%lld",
+    "ja": "%lld"
+  },
+  "%lld %@": {
+    "de": "%lld %@",
+    "fr": "%lld %@",
+    "es": "%lld %@",
+    "ja": "%lld %@"
+  },
   "%lld points": {
-    "en": {"one": "%lld point", "other": "%lld points"},
-    "de": {"one": "%lld Punkt", "other": "%lld Punkte"},
-    "fr": {"one": "%lld point", "other": "%lld points"},
-    "es": {"one": "%lld punto", "other": "%lld puntos"},
-    "ja": {"other": "%lld点"}
+    "en": {
+      "one": "%lld point",
+      "other": "%lld points"
+    },
+    "de": {
+      "one": "%lld Punkt",
+      "other": "%lld Punkte"
+    },
+    "fr": {
+      "one": "%lld point",
+      "other": "%lld points"
+    },
+    "es": {
+      "one": "%lld punto",
+      "other": "%lld puntos"
+    },
+    "ja": {
+      "other": "%lld点"
+    }
   },
   "%lld points · %lld segments": {
-    "en": {"one": "%lld points · %lld segment", "other": "%lld points · %lld segments"},
-    "de": {"one": "%lld Punkte · %lld Segment", "other": "%lld Punkte · %lld Segmente"},
-    "fr": {"one": "%lld points · %lld segment", "other": "%lld points · %lld segments"},
-    "es": {"one": "%lld puntos · %lld segmento", "other": "%lld puntos · %lld segmentos"},
-    "ja": {"other": "%lld点 · %lldセグメント"}
+    "en": {
+      "one": "%lld points · %lld segment",
+      "other": "%lld points · %lld segments"
+    },
+    "de": {
+      "one": "%lld Punkte · %lld Segment",
+      "other": "%lld Punkte · %lld Segmente"
+    },
+    "fr": {
+      "one": "%lld points · %lld segment",
+      "other": "%lld points · %lld segments"
+    },
+    "es": {
+      "one": "%lld puntos · %lld segmento",
+      "other": "%lld puntos · %lld segmentos"
+    },
+    "ja": {
+      "other": "%lld点 · %lldセグメント"
+    }
   },
   "%lld waypoints, no tracks": {
-    "en": {"one": "%lld waypoint, no tracks", "other": "%lld waypoints, no tracks"},
-    "de": {"one": "%lld Wegpunkt, keine Tracks", "other": "%lld Wegpunkte, keine Tracks"},
-    "fr": {"one": "%lld point d'intérêt, aucune trace", "other": "%lld points d'intérêt, aucune trace"},
-    "es": {"one": "%lld waypoint, sin tracks", "other": "%lld waypoints, sin tracks"},
-    "ja": {"other": "ウェイポイント%lld、トラックなし"}
+    "en": {
+      "one": "%lld waypoint, no tracks",
+      "other": "%lld waypoints, no tracks"
+    },
+    "de": {
+      "one": "%lld Wegpunkt, keine Tracks",
+      "other": "%lld Wegpunkte, keine Tracks"
+    },
+    "fr": {
+      "one": "%lld point d'intérêt, aucune trace",
+      "other": "%lld points d'intérêt, aucune trace"
+    },
+    "es": {
+      "one": "%lld waypoint, sin tracks",
+      "other": "%lld waypoints, sin tracks"
+    },
+    "ja": {
+      "other": "ウェイポイント%lld、トラックなし"
+    }
   },
-  "10": {"de": "10", "fr": "10", "es": "10", "ja": "10"},
-  "2": {"de": "2", "fr": "2", "es": "2", "ja": "2"},
-  "Adjust the thickness of track lines on the map": {"de": "Stellt die Dicke der Tracklinien auf der Karte ein", "fr": "Règle l'épaisseur des traces sur la carte", "es": "Ajusta el grosor de las líneas de la ruta en el mapa", "ja": "地図上の軌跡の線の太さを調整します"},
-  "Also from ObjectGraph": {"de": "Auch von ObjectGraph", "fr": "Aussi par ObjectGraph", "es": "También de ObjectGraph", "ja": "ObjectGraphのほかのアプリ"},
-  "Avg pace": {"de": "Ø Tempo", "fr": "Allure moy.", "es": "Ritmo medio", "ja": "平均ペース"},
-  "Avg speed": {"de": "Ø Geschw.", "fr": "Vitesse moy.", "es": "Vel. media", "ja": "平均速度"},
-  "Bottom": {"de": "Unten", "fr": "Bas", "es": "Abajo", "ja": "下"},
-  "Cadence": {"de": "Trittfrequenz", "fr": "Cadence", "es": "Cadencia", "ja": "ケイデンス"},
-  "Chart Data Density": {"de": "Datendichte im Diagramm", "fr": "Densité du graphique", "es": "Densidad de la gráfica", "ja": "グラフのデータ密度"},
-  "Chart Data Density: %@": {"de": "Datendichte im Diagramm: %@", "fr": "Densité du graphique : %@", "es": "Densidad de la gráfica: %@", "ja": "グラフのデータ密度: %@"},
-  "Chart metric": {"de": "Diagrammreihe", "fr": "Série du graphique", "es": "Serie de la gráfica", "ja": "グラフの系列"},
-  "Close": {"de": "Schließen", "fr": "Fermer", "es": "Cerrar", "ja": "閉じる"},
-  "Controls the number of data points shown in the elevation chart. Higher values show more detail but may impact performance with large tracks.": {"de": "Legt fest, wie viele Datenpunkte das Höhendiagramm zeigt. Höhere Werte zeigen mehr Details, können bei großen Tracks aber langsamer sein.", "fr": "Nombre de points affichés dans le graphique d'altitude. Plus la valeur est haute, plus il y a de détail, au prix de la fluidité sur les longues traces.", "es": "Cuántos puntos muestra la gráfica de altitud. Valores altos muestran más detalle pero pueden ir más lentos con rutas grandes.", "ja": "標高グラフに表示するデータ点の数です。大きいほど詳細になりますが、大きなトラックでは遅くなることがあります。"},
-  "Controls whether the elevation chart overlay appears by default when opening GPX files": {"de": "Legt fest, ob das Höhendiagramm beim Öffnen einer GPX-Datei standardmäßig angezeigt wird", "fr": "Affiche le graphique d'altitude par défaut à l'ouverture d'un fichier GPX", "es": "Muestra la gráfica de altitud por defecto al abrir un archivo GPX", "ja": "GPXファイルを開いたときに標高グラフを最初から表示するかどうか"},
-  "Controls whether the route information overlay appears by default when opening GPX files": {"de": "Legt fest, ob die Routenkarte beim Öffnen einer GPX-Datei standardmäßig angezeigt wird", "fr": "Affiche la fiche d'itinéraire par défaut à l'ouverture d'un fichier GPX", "es": "Muestra la ficha de ruta por defecto al abrir un archivo GPX", "ja": "GPXファイルを開いたときにルートカードを最初から表示するかどうか"},
-  "Could not export": {"de": "Export fehlgeschlagen", "fr": "Export impossible", "es": "No se pudo exportar", "ja": "書き出せませんでした"},
-  "Distance": {"de": "Distanz", "fr": "Distance", "es": "Distancia", "ja": "距離"},
-  "Done": {"de": "Fertig", "fr": "OK", "es": "OK", "ja": "完了"},
-  "Elapsed %@": {"de": "Gesamt %@", "fr": "Écoulé %@", "es": "Total %@", "ja": "経過 %@"},
-  "Elev": {"de": "Höhe", "fr": "Alt.", "es": "Alt.", "ja": "標高"},
-  "Elevation": {"de": "Höhe", "fr": "Altitude", "es": "Altitud", "ja": "標高"},
-  "Elevation Profile": {"de": "Höhenprofil", "fr": "Profil d'altitude", "es": "Perfil de altitud", "ja": "標高プロファイル"},
-  "Elevation Visualization": {"de": "Höhendarstellung", "fr": "Affichage de l'altitude", "es": "Visualización de altitud", "ja": "標高の表示"},
-  "Elevation: %lldm": {"de": "Höhe: %lld m", "fr": "Altitude : %lld m", "es": "Altitud: %lld m", "ja": "標高: %lld m"},
-  "End": {"de": "Ende", "fr": "Arrivée", "es": "Fin", "ja": "終点"},
-  "Export Map Image…": {"de": "Kartenbild exportieren …", "fr": "Exporter la carte en image…", "es": "Exportar imagen del mapa…", "ja": "地図を画像に書き出す…"},
-  "Fit the track in the window (⌘0)": {"de": "Track ins Fenster einpassen (⌘0)", "fr": "Ajuster la trace à la fenêtre (⌘0)", "es": "Ajustar la ruta a la ventana (⌘0)", "ja": "軌跡をウインドウに合わせる (⌘0)"},
-  "Fit to View": {"de": "Einpassen", "fr": "Ajuster", "es": "Ajustar", "ja": "全体を表示"},
-  "Gain": {"de": "Bergauf", "fr": "D+", "es": "Subida", "ja": "獲得標高"},
-  "Gain: %@": {"de": "Bergauf: %@", "fr": "D+ : %@", "es": "Subida: %@", "ja": "獲得標高: %@"},
-  "Heart rate avg / max": {"de": "Puls Ø / max", "fr": "Cardio moy. / max", "es": "Pulso medio / máx", "ja": "心拍 平均 / 最大"},
-  "Hide details": {"de": "Details ausblenden", "fr": "Masquer les détails", "es": "Ocultar detalles", "ja": "詳細を隠す"},
-  "High": {"de": "Hoch", "fr": "Haut", "es": "Alto", "ja": "高"},
-  "Loss": {"de": "Bergab", "fr": "D−", "es": "Bajada", "ja": "下降"},
-  "Low": {"de": "Niedrig", "fr": "Bas", "es": "Bajo", "ja": "低"},
-  "Map": {"de": "Karte", "fr": "Carte", "es": "Mapa", "ja": "地図"},
-  "Map Style": {"de": "Kartenstil", "fr": "Style de carte", "es": "Estilo de mapa", "ja": "地図の種類"},
-  "Max": {"de": "Max", "fr": "Max", "es": "Máx", "ja": "最高"},
-  "Max %@": {"de": "Max %@", "fr": "Max %@", "es": "Máx %@", "ja": "最高 %@"},
-  "Max: %@": {"de": "Max: %@", "fr": "Max : %@", "es": "Máx: %@", "ja": "最高: %@"},
-  "Metric": {"de": "Reihe", "fr": "Série", "es": "Serie", "ja": "系列"},
-  "Min": {"de": "Min", "fr": "Min", "es": "Mín", "ja": "最低"},
-  "Min: %@": {"de": "Min: %@", "fr": "Min : %@", "es": "Mín: %@", "ja": "最低: %@"},
-  "Moving": {"de": "In Bewegung", "fr": "En mouvement", "es": "En movimiento", "ja": "移動時間"},
-  "No %@ data in the visible tracks.": {"de": "Keine %@-Daten in den sichtbaren Tracks.", "fr": "Pas de données %@ dans les traces visibles.", "es": "No hay datos de %@ en las rutas visibles.", "ja": "表示中のトラックに%@のデータはありません。"},
-  "No valid GPX data found": {"de": "Keine gültigen GPX-Daten gefunden", "fr": "Aucune donnée GPX valide", "es": "No se encontraron datos GPX válidos", "ja": "有効なGPXデータが見つかりません"},
-  "OK": {"de": "OK", "fr": "OK", "es": "OK", "ja": "OK"},
-  "Pace": {"de": "Tempo", "fr": "Allure", "es": "Ritmo", "ja": "ペース"},
-  "Power avg / max": {"de": "Leistung Ø / max", "fr": "Puissance moy. / max", "es": "Potencia media / máx", "ja": "パワー 平均 / 最大"},
-  "Rendering image…": {"de": "Bild wird erstellt …", "fr": "Création de l'image…", "es": "Creando la imagen…", "ja": "画像を作成中…"},
-  "Reset zoom": {"de": "Zoom zurücksetzen", "fr": "Réinitialiser le zoom", "es": "Restablecer el zoom", "ja": "ズームをリセット"},
-  "Route Info": {"de": "Routeninfo", "fr": "Infos itinéraire", "es": "Info de ruta", "ja": "ルート情報"},
-  "Segment": {"de": "Segment", "fr": "Segment", "es": "Segmento", "ja": "セグメント"},
-  "Segment %lld": {"de": "Segment %lld", "fr": "Segment %lld", "es": "Segmento %lld", "ja": "セグメント %lld"},
-  "Selected": {"de": "Ausgewählt", "fr": "Sélection", "es": "Seleccionado", "ja": "選択"},
-  "Settings": {"de": "Einstellungen", "fr": "Réglages", "es": "Ajustes", "ja": "設定"},
-  "Share": {"de": "Teilen", "fr": "Partager", "es": "Compartir", "ja": "共有"},
-  "Share GPX File": {"de": "GPX-Datei teilen", "fr": "Partager le fichier GPX", "es": "Compartir archivo GPX", "ja": "GPXファイルを共有"},
-  "Show Elevation Chart by Default": {"de": "Höhendiagramm standardmäßig zeigen", "fr": "Graphique d'altitude par défaut", "es": "Mostrar gráfica de altitud por defecto", "ja": "標高グラフを最初から表示"},
-  "Show My Location": {"de": "Meinen Standort zeigen", "fr": "Afficher ma position", "es": "Mostrar mi ubicación", "ja": "現在地を表示"},
-  "Show Route Info by Default": {"de": "Routeninfo standardmäßig zeigen", "fr": "Infos itinéraire par défaut", "es": "Mostrar info de ruta por defecto", "ja": "ルート情報を最初から表示"},
-  "Show or hide the chart (⌘E)": {"de": "Diagramm ein- oder ausblenden (⌘E)", "fr": "Afficher ou masquer le graphique (⌘E)", "es": "Mostrar u ocultar la gráfica (⌘E)", "ja": "グラフの表示/非表示 (⌘E)"},
-  "Show or hide the route card (⌘I)": {"de": "Routenkarte ein- oder ausblenden (⌘I)", "fr": "Afficher ou masquer la fiche (⌘I)", "es": "Mostrar u ocultar la ficha de ruta (⌘I)", "ja": "ルートカードの表示/非表示 (⌘I)"},
-  "Shows your current location on the map when enabled": {"de": "Zeigt deinen aktuellen Standort auf der Karte", "fr": "Affiche votre position sur la carte", "es": "Muestra tu ubicación actual en el mapa", "ja": "オンにすると現在地を地図に表示します"},
-  "Speed": {"de": "Geschwindigkeit", "fr": "Vitesse", "es": "Velocidad", "ja": "速度"},
-  "Splits, per %@": {"de": "Splits pro %@", "fr": "Intermédiaires par %@", "es": "Parciales por %@", "ja": "%@ごとのスプリット"},
-  "Start": {"de": "Start", "fr": "Départ", "es": "Inicio", "ja": "始点"},
-  "Temperature": {"de": "Temperatur", "fr": "Température", "es": "Temperatura", "ja": "気温"},
-  "The map could not be rendered.": {"de": "Die Karte konnte nicht gezeichnet werden.", "fr": "La carte n'a pas pu être dessinée.", "es": "No se pudo dibujar el mapa.", "ja": "地図を描画できませんでした。"},
-  "This file has no elevation data.": {"de": "Diese Datei enthält keine Höhendaten.", "fr": "Ce fichier ne contient pas d'altitude.", "es": "Este archivo no tiene datos de altitud.", "ja": "このファイルに標高データはありません。"},
-  "This file has no tracks, routes or waypoints. Open a GPX file to view it on the map.": {"de": "Diese Datei enthält keine Tracks, Routen oder Wegpunkte. Öffne eine GPX-Datei, um sie auf der Karte zu sehen.", "fr": "Ce fichier ne contient ni trace, ni itinéraire, ni point d'intérêt. Ouvrez un fichier GPX pour le voir sur la carte.", "es": "Este archivo no tiene tracks, rutas ni waypoints. Abre un archivo GPX para verlo en el mapa.", "ja": "このファイルにはトラック、ルート、ウェイポイントがありません。GPXファイルを開くと地図に表示されます。"},
-  "Time": {"de": "Zeit", "fr": "Temps", "es": "Tiempo", "ja": "時間"},
-  "Top": {"de": "Oben", "fr": "Haut", "es": "Arriba", "ja": "上"},
-  "Track Line Width": {"de": "Linienbreite", "fr": "Épaisseur du trait", "es": "Grosor de la línea", "ja": "線の太さ"},
-  "Track Line Width: %lld": {"de": "Linienbreite: %lld", "fr": "Épaisseur du trait : %lld", "es": "Grosor de la línea: %lld", "ja": "線の太さ: %lld"},
-  "Tracks": {"de": "Tracks", "fr": "Traces", "es": "Tracks", "ja": "トラック"},
-  "Tracks & Waypoints": {"de": "Tracks & Wegpunkte", "fr": "Traces et points d'intérêt", "es": "Tracks y waypoints", "ja": "トラックとウェイポイント"},
-  "Turn any Apple Health workout into a GPX file, with heart rate, cadence and power. Free.": {"de": "Macht aus jedem Apple-Health-Workout eine GPX-Datei, mit Herzfrequenz, Trittfrequenz und Leistung. Kostenlos.", "fr": "Transforme toute séance Apple Santé en fichier GPX, avec cardio, cadence et puissance. Gratuit.", "es": "Convierte cualquier entreno de Apple Salud en un GPX, con pulso, cadencia y potencia. Gratis.", "ja": "ヘルスケアのワークアウトを心拍・ケイデンス・パワー付きのGPXに。無料。"},
-  "Units": {"de": "Einheiten", "fr": "Unités", "es": "Unidades", "ja": "単位"},
-  "Use Metric System (km)": {"de": "Metrisches System (km)", "fr": "Système métrique (km)", "es": "Sistema métrico (km)", "ja": "メートル法 (km)"},
-  "Value": {"de": "Wert", "fr": "Valeur", "es": "Valor", "ja": "値"},
-  "Visualization Mode": {"de": "Darstellung", "fr": "Mode d'affichage", "es": "Modo de visualización", "ja": "表示モード"},
-  "Waypoints (%lld)": {"de": "Wegpunkte (%lld)", "fr": "Points d'intérêt (%lld)", "es": "Waypoints (%lld)", "ja": "ウェイポイント (%lld)"},
-  "WorkoutGPX": {"de": "WorkoutGPX", "fr": "WorkoutGPX", "es": "WorkoutGPX", "ja": "WorkoutGPX"},
-  "avg %@": {"de": "Ø %@", "fr": "moy. %@", "es": "media %@", "ja": "平均 %@"},
-  "avg %lld W": {"de": "Ø %lld W", "fr": "moy. %lld W", "es": "media %lld W", "ja": "平均 %lld W"},
-  "avg %lld bpm": {"de": "Ø %lld bpm", "fr": "moy. %lld bpm", "es": "media %lld ppm", "ja": "平均 %lld bpm"},
-  "avg %lld rpm": {"de": "Ø %lld rpm", "fr": "moy. %lld rpm", "es": "media %lld rpm", "ja": "平均 %lld rpm"},
-  "Standard": {"de": "Standard", "fr": "Standard", "es": "Estándar", "ja": "標準"},
-  "Satellite": {"de": "Satellit", "fr": "Satellite", "es": "Satélite", "ja": "航空写真"},
-  "Hybrid": {"de": "Hybrid", "fr": "Hybride", "es": "Híbrido", "ja": "ハイブリッド"},
-  "Effort": {"de": "Anstrengung", "fr": "Effort", "es": "Esfuerzo", "ja": "負荷"},
-  "Gradient": {"de": "Höhenverlauf", "fr": "Dégradé", "es": "Gradiente", "ja": "標高グラデーション"},
-  "Heart rate": {"de": "Herzfrequenz", "fr": "Fréquence cardiaque", "es": "Pulso", "ja": "心拍数"},
-  "Power": {"de": "Leistung", "fr": "Puissance", "es": "Potencia", "ja": "パワー"},
-  "Colors based on combined effort (grade and distance)": {"de": "Farben nach Anstrengung (Steigung und Distanz)", "fr": "Couleurs selon l'effort (pente et distance)", "es": "Colores según el esfuerzo (pendiente y distancia)", "ja": "負荷（勾配と距離）に応じた色"},
-  "Colors based purely on elevation gradient": {"de": "Farben rein nach Höhe", "fr": "Couleurs selon l'altitude seule", "es": "Colores solo según la altitud", "ja": "標高のみに応じた色"}
+  "10": {
+    "de": "10",
+    "fr": "10",
+    "es": "10",
+    "ja": "10"
+  },
+  "2": {
+    "de": "2",
+    "fr": "2",
+    "es": "2",
+    "ja": "2"
+  },
+  "Adjust the thickness of track lines on the map": {
+    "de": "Stellt die Dicke der Tracklinien auf der Karte ein",
+    "fr": "Règle l'épaisseur des traces sur la carte",
+    "es": "Ajusta el grosor de las líneas de la ruta en el mapa",
+    "ja": "地図上の軌跡の線の太さを調整します"
+  },
+  "Also from ObjectGraph": {
+    "de": "Auch von ObjectGraph",
+    "fr": "Aussi par ObjectGraph",
+    "es": "También de ObjectGraph",
+    "ja": "ObjectGraphのほかのアプリ"
+  },
+  "Avg pace": {
+    "de": "Ø Tempo",
+    "fr": "Allure moy.",
+    "es": "Ritmo medio",
+    "ja": "平均ペース"
+  },
+  "Avg speed": {
+    "de": "Ø Geschw.",
+    "fr": "Vitesse moy.",
+    "es": "Vel. media",
+    "ja": "平均速度"
+  },
+  "Bottom": {
+    "de": "Unten",
+    "fr": "Bas",
+    "es": "Abajo",
+    "ja": "下"
+  },
+  "Cadence": {
+    "de": "Trittfrequenz",
+    "fr": "Cadence",
+    "es": "Cadencia",
+    "ja": "ケイデンス"
+  },
+  "Chart Data Density": {
+    "de": "Datendichte im Diagramm",
+    "fr": "Densité du graphique",
+    "es": "Densidad de la gráfica",
+    "ja": "グラフのデータ密度"
+  },
+  "Chart Data Density: %@": {
+    "de": "Datendichte im Diagramm: %@",
+    "fr": "Densité du graphique : %@",
+    "es": "Densidad de la gráfica: %@",
+    "ja": "グラフのデータ密度: %@"
+  },
+  "Chart metric": {
+    "de": "Diagrammreihe",
+    "fr": "Série du graphique",
+    "es": "Serie de la gráfica",
+    "ja": "グラフの系列"
+  },
+  "Close": {
+    "de": "Schließen",
+    "fr": "Fermer",
+    "es": "Cerrar",
+    "ja": "閉じる"
+  },
+  "Controls the number of data points shown in the elevation chart. Higher values show more detail but may impact performance with large tracks.": {
+    "de": "Legt fest, wie viele Datenpunkte das Höhendiagramm zeigt. Höhere Werte zeigen mehr Details, können bei großen Tracks aber langsamer sein.",
+    "fr": "Nombre de points affichés dans le graphique d'altitude. Plus la valeur est haute, plus il y a de détail, au prix de la fluidité sur les longues traces.",
+    "es": "Cuántos puntos muestra la gráfica de altitud. Valores altos muestran más detalle pero pueden ir más lentos con rutas grandes.",
+    "ja": "標高グラフに表示するデータ点の数です。大きいほど詳細になりますが、大きなトラックでは遅くなることがあります。"
+  },
+  "Controls whether the elevation chart overlay appears by default when opening GPX files": {
+    "de": "Legt fest, ob das Höhendiagramm beim Öffnen einer GPX-Datei standardmäßig angezeigt wird",
+    "fr": "Affiche le graphique d'altitude par défaut à l'ouverture d'un fichier GPX",
+    "es": "Muestra la gráfica de altitud por defecto al abrir un archivo GPX",
+    "ja": "GPXファイルを開いたときに標高グラフを最初から表示するかどうか"
+  },
+  "Controls whether the route information overlay appears by default when opening GPX files": {
+    "de": "Legt fest, ob die Routenkarte beim Öffnen einer GPX-Datei standardmäßig angezeigt wird",
+    "fr": "Affiche la fiche d'itinéraire par défaut à l'ouverture d'un fichier GPX",
+    "es": "Muestra la ficha de ruta por defecto al abrir un archivo GPX",
+    "ja": "GPXファイルを開いたときにルートカードを最初から表示するかどうか"
+  },
+  "Could not export": {
+    "de": "Export fehlgeschlagen",
+    "fr": "Export impossible",
+    "es": "No se pudo exportar",
+    "ja": "書き出せませんでした"
+  },
+  "Distance": {
+    "de": "Distanz",
+    "fr": "Distance",
+    "es": "Distancia",
+    "ja": "距離"
+  },
+  "Done": {
+    "de": "Fertig",
+    "fr": "OK",
+    "es": "OK",
+    "ja": "完了"
+  },
+  "Elapsed %@": {
+    "de": "Gesamt %@",
+    "fr": "Écoulé %@",
+    "es": "Total %@",
+    "ja": "経過 %@"
+  },
+  "Elev": {
+    "de": "Höhe",
+    "fr": "Alt.",
+    "es": "Alt.",
+    "ja": "標高"
+  },
+  "Elevation": {
+    "de": "Höhe",
+    "fr": "Altitude",
+    "es": "Altitud",
+    "ja": "標高"
+  },
+  "Elevation Profile": {
+    "de": "Höhenprofil",
+    "fr": "Profil d'altitude",
+    "es": "Perfil de altitud",
+    "ja": "標高プロファイル"
+  },
+  "Elevation Visualization": {
+    "de": "Höhendarstellung",
+    "fr": "Affichage de l'altitude",
+    "es": "Visualización de altitud",
+    "ja": "標高の表示"
+  },
+  "Elevation: %lldm": {
+    "de": "Höhe: %lld m",
+    "fr": "Altitude : %lld m",
+    "es": "Altitud: %lld m",
+    "ja": "標高: %lld m"
+  },
+  "End": {
+    "de": "Ziel",
+    "fr": "Arrivée",
+    "es": "Fin",
+    "ja": "ゴール"
+  },
+  "Export Map Image…": {
+    "de": "Kartenbild exportieren …",
+    "fr": "Exporter la carte en image…",
+    "es": "Exportar imagen del mapa…",
+    "ja": "地図を画像に書き出す…"
+  },
+  "Fit the track in the window (⌘0)": {
+    "de": "Track ins Fenster einpassen (⌘0)",
+    "fr": "Ajuster la trace à la fenêtre (⌘0)",
+    "es": "Ajustar la ruta a la ventana (⌘0)",
+    "ja": "軌跡をウインドウに合わせる (⌘0)"
+  },
+  "Fit to View": {
+    "de": "Einpassen",
+    "fr": "Ajuster",
+    "es": "Ajustar",
+    "ja": "全体を表示"
+  },
+  "Gain": {
+    "de": "Bergauf",
+    "fr": "D+",
+    "es": "Subida",
+    "ja": "獲得標高"
+  },
+  "Gain: %@": {
+    "de": "Bergauf: %@",
+    "fr": "D+ : %@",
+    "es": "Subida: %@",
+    "ja": "獲得標高: %@"
+  },
+  "Heart rate avg / max": {
+    "de": "Puls Ø / max",
+    "fr": "Cardio moy. / max",
+    "es": "Pulso medio / máx",
+    "ja": "心拍 平均 / 最大"
+  },
+  "Hide details": {
+    "de": "Details ausblenden",
+    "fr": "Masquer les détails",
+    "es": "Ocultar detalles",
+    "ja": "詳細を隠す"
+  },
+  "High": {
+    "de": "Hoch",
+    "fr": "Haut",
+    "es": "Alto",
+    "ja": "高"
+  },
+  "Loss": {
+    "de": "Bergab",
+    "fr": "D−",
+    "es": "Bajada",
+    "ja": "下降"
+  },
+  "Low": {
+    "de": "Niedrig",
+    "fr": "Bas",
+    "es": "Bajo",
+    "ja": "低"
+  },
+  "Map": {
+    "de": "Karte",
+    "fr": "Carte",
+    "es": "Mapa",
+    "ja": "地図"
+  },
+  "Map Style": {
+    "de": "Kartenstil",
+    "fr": "Style de carte",
+    "es": "Estilo de mapa",
+    "ja": "地図の種類"
+  },
+  "Max": {
+    "de": "Max",
+    "fr": "Max",
+    "es": "Máx",
+    "ja": "最高"
+  },
+  "Max %@": {
+    "de": "Max %@",
+    "fr": "Max %@",
+    "es": "Máx %@",
+    "ja": "最高 %@"
+  },
+  "Max: %@": {
+    "de": "Max: %@",
+    "fr": "Max : %@",
+    "es": "Máx: %@",
+    "ja": "最高: %@"
+  },
+  "Metric": {
+    "de": "Reihe",
+    "fr": "Série",
+    "es": "Serie",
+    "ja": "系列"
+  },
+  "Min": {
+    "de": "Min",
+    "fr": "Min",
+    "es": "Mín",
+    "ja": "最低"
+  },
+  "Min: %@": {
+    "de": "Min: %@",
+    "fr": "Min : %@",
+    "es": "Mín: %@",
+    "ja": "最低: %@"
+  },
+  "Moving": {
+    "de": "In Bewegung",
+    "fr": "En mouvement",
+    "es": "En movimiento",
+    "ja": "移動時間"
+  },
+  "No %@ data in the visible tracks.": {
+    "de": "Keine %@-Daten in den sichtbaren Tracks.",
+    "fr": "Pas de données %@ dans les traces visibles.",
+    "es": "No hay datos de %@ en las rutas visibles.",
+    "ja": "表示中のトラックに%@のデータはありません。"
+  },
+  "No valid GPX data found": {
+    "de": "Keine gültigen GPX-Daten gefunden",
+    "fr": "Aucune donnée GPX valide",
+    "es": "No se encontraron datos GPX válidos",
+    "ja": "有効なGPXデータが見つかりません"
+  },
+  "OK": {
+    "de": "OK",
+    "fr": "OK",
+    "es": "OK",
+    "ja": "OK"
+  },
+  "Pace": {
+    "de": "Tempo",
+    "fr": "Allure",
+    "es": "Ritmo",
+    "ja": "ペース"
+  },
+  "Power avg / max": {
+    "de": "Leistung Ø / max",
+    "fr": "Puissance moy. / max",
+    "es": "Potencia media / máx",
+    "ja": "パワー 平均 / 最大"
+  },
+  "Rendering image…": {
+    "de": "Bild wird erstellt …",
+    "fr": "Création de l'image…",
+    "es": "Creando la imagen…",
+    "ja": "画像を作成中…"
+  },
+  "Reset zoom": {
+    "de": "Zoom zurücksetzen",
+    "fr": "Réinitialiser le zoom",
+    "es": "Restablecer el zoom",
+    "ja": "ズームをリセット"
+  },
+  "Route Info": {
+    "de": "Routeninfo",
+    "fr": "Infos itinéraire",
+    "es": "Info de ruta",
+    "ja": "ルート情報"
+  },
+  "Segment": {
+    "de": "Segment",
+    "fr": "Segment",
+    "es": "Segmento",
+    "ja": "セグメント"
+  },
+  "Segment %lld": {
+    "de": "Segment %lld",
+    "fr": "Segment %lld",
+    "es": "Segmento %lld",
+    "ja": "セグメント %lld"
+  },
+  "Selected": {
+    "de": "Ausgewählt",
+    "fr": "Sélection",
+    "es": "Seleccionado",
+    "ja": "選択"
+  },
+  "Settings": {
+    "de": "Einstellungen",
+    "fr": "Réglages",
+    "es": "Ajustes",
+    "ja": "設定"
+  },
+  "Share": {
+    "de": "Teilen",
+    "fr": "Partager",
+    "es": "Compartir",
+    "ja": "共有"
+  },
+  "Share GPX File": {
+    "de": "GPX-Datei teilen",
+    "fr": "Partager le fichier GPX",
+    "es": "Compartir archivo GPX",
+    "ja": "GPXファイルを共有"
+  },
+  "Show Elevation Chart by Default": {
+    "de": "Höhendiagramm standardmäßig zeigen",
+    "fr": "Graphique d'altitude par défaut",
+    "es": "Mostrar gráfica de altitud por defecto",
+    "ja": "標高グラフを最初から表示"
+  },
+  "Show My Location": {
+    "de": "Meinen Standort zeigen",
+    "fr": "Afficher ma position",
+    "es": "Mostrar mi ubicación",
+    "ja": "現在地を表示"
+  },
+  "Show Route Info by Default": {
+    "de": "Routeninfo standardmäßig zeigen",
+    "fr": "Infos itinéraire par défaut",
+    "es": "Mostrar info de ruta por defecto",
+    "ja": "ルート情報を最初から表示"
+  },
+  "Show or hide the chart (⌘E)": {
+    "de": "Diagramm ein- oder ausblenden (⌘E)",
+    "fr": "Afficher ou masquer le graphique (⌘E)",
+    "es": "Mostrar u ocultar la gráfica (⌘E)",
+    "ja": "グラフの表示/非表示 (⌘E)"
+  },
+  "Show or hide the route card (⌘I)": {
+    "de": "Routenkarte ein- oder ausblenden (⌘I)",
+    "fr": "Afficher ou masquer la fiche (⌘I)",
+    "es": "Mostrar u ocultar la ficha de ruta (⌘I)",
+    "ja": "ルートカードの表示/非表示 (⌘I)"
+  },
+  "Shows your current location on the map when enabled": {
+    "de": "Zeigt deinen aktuellen Standort auf der Karte",
+    "fr": "Affiche votre position sur la carte",
+    "es": "Muestra tu ubicación actual en el mapa",
+    "ja": "オンにすると現在地を地図に表示します"
+  },
+  "Speed": {
+    "de": "Geschwindigkeit",
+    "fr": "Vitesse",
+    "es": "Velocidad",
+    "ja": "速度"
+  },
+  "Splits, per %@": {
+    "de": "Splits pro %@",
+    "fr": "Intermédiaires par %@",
+    "es": "Parciales por %@",
+    "ja": "%@ごとのスプリット"
+  },
+  "Start": {
+    "de": "Start",
+    "fr": "Départ",
+    "es": "Inicio",
+    "ja": "スタート"
+  },
+  "Temperature": {
+    "de": "Temperatur",
+    "fr": "Température",
+    "es": "Temperatura",
+    "ja": "気温"
+  },
+  "The map could not be rendered.": {
+    "de": "Die Karte konnte nicht gezeichnet werden.",
+    "fr": "La carte n'a pas pu être dessinée.",
+    "es": "No se pudo dibujar el mapa.",
+    "ja": "地図を描画できませんでした。"
+  },
+  "This file has no elevation data.": {
+    "de": "Diese Datei enthält keine Höhendaten.",
+    "fr": "Ce fichier ne contient pas d'altitude.",
+    "es": "Este archivo no tiene datos de altitud.",
+    "ja": "このファイルに標高データはありません。"
+  },
+  "This file has no tracks, routes or waypoints. Open a GPX file to view it on the map.": {
+    "de": "Diese Datei enthält keine Tracks, Routen oder Wegpunkte. Öffne eine GPX-Datei, um sie auf der Karte zu sehen.",
+    "fr": "Ce fichier ne contient ni trace, ni itinéraire, ni point d'intérêt. Ouvrez un fichier GPX pour le voir sur la carte.",
+    "es": "Este archivo no tiene tracks, rutas ni waypoints. Abre un archivo GPX para verlo en el mapa.",
+    "ja": "このファイルにはトラック、ルート、ウェイポイントがありません。GPXファイルを開くと地図に表示されます。"
+  },
+  "Time": {
+    "de": "Zeit",
+    "fr": "Temps",
+    "es": "Tiempo",
+    "ja": "時間"
+  },
+  "Top": {
+    "de": "Oben",
+    "fr": "Haut",
+    "es": "Arriba",
+    "ja": "上"
+  },
+  "Track Line Width": {
+    "de": "Linienbreite",
+    "fr": "Épaisseur du trait",
+    "es": "Grosor de la línea",
+    "ja": "線の太さ"
+  },
+  "Track Line Width: %lld": {
+    "de": "Linienbreite: %lld",
+    "fr": "Épaisseur du trait : %lld",
+    "es": "Grosor de la línea: %lld",
+    "ja": "線の太さ: %lld"
+  },
+  "Tracks": {
+    "de": "Tracks",
+    "fr": "Traces",
+    "es": "Tracks",
+    "ja": "トラック"
+  },
+  "Tracks & Waypoints": {
+    "de": "Tracks & Wegpunkte",
+    "fr": "Traces et points d'intérêt",
+    "es": "Tracks y waypoints",
+    "ja": "トラックとウェイポイント"
+  },
+  "Turn any Apple Health workout into a GPX file, with heart rate, cadence and power. Free.": {
+    "de": "Macht aus jedem Apple-Health-Workout eine GPX-Datei, mit Herzfrequenz, Trittfrequenz und Leistung. Kostenlos.",
+    "fr": "Transforme toute séance Apple Santé en fichier GPX, avec cardio, cadence et puissance. Gratuit.",
+    "es": "Convierte cualquier entreno de Apple Salud en un GPX, con pulso, cadencia y potencia. Gratis.",
+    "ja": "ヘルスケアのワークアウトを心拍・ケイデンス・パワー付きのGPXに。無料。"
+  },
+  "Units": {
+    "de": "Einheiten",
+    "fr": "Unités",
+    "es": "Unidades",
+    "ja": "単位"
+  },
+  "Use Metric System (km)": {
+    "de": "Metrisches System (km)",
+    "fr": "Système métrique (km)",
+    "es": "Sistema métrico (km)",
+    "ja": "メートル法 (km)"
+  },
+  "Value": {
+    "de": "Wert",
+    "fr": "Valeur",
+    "es": "Valor",
+    "ja": "値"
+  },
+  "Visualization Mode": {
+    "de": "Darstellung",
+    "fr": "Mode d'affichage",
+    "es": "Modo de visualización",
+    "ja": "表示モード"
+  },
+  "Waypoints (%lld)": {
+    "de": "Wegpunkte (%lld)",
+    "fr": "Points d'intérêt (%lld)",
+    "es": "Waypoints (%lld)",
+    "ja": "ウェイポイント (%lld)"
+  },
+  "WorkoutGPX": {
+    "de": "WorkoutGPX",
+    "fr": "WorkoutGPX",
+    "es": "WorkoutGPX",
+    "ja": "WorkoutGPX"
+  },
+  "avg %@": {
+    "de": "Ø %@",
+    "fr": "moy. %@",
+    "es": "media %@",
+    "ja": "平均 %@"
+  },
+  "avg %lld W": {
+    "de": "Ø %lld W",
+    "fr": "moy. %lld W",
+    "es": "media %lld W",
+    "ja": "平均 %lld W"
+  },
+  "avg %lld bpm": {
+    "de": "Ø %lld bpm",
+    "fr": "moy. %lld bpm",
+    "es": "media %lld ppm",
+    "ja": "平均 %lld bpm"
+  },
+  "avg %lld rpm": {
+    "de": "Ø %lld rpm",
+    "fr": "moy. %lld rpm",
+    "es": "media %lld rpm",
+    "ja": "平均 %lld rpm"
+  },
+  "Standard": {
+    "de": "Standard",
+    "fr": "Standard",
+    "es": "Estándar",
+    "ja": "標準"
+  },
+  "Satellite": {
+    "de": "Satellit",
+    "fr": "Satellite",
+    "es": "Satélite",
+    "ja": "航空写真"
+  },
+  "Hybrid": {
+    "de": "Hybrid",
+    "fr": "Hybride",
+    "es": "Híbrido",
+    "ja": "ハイブリッド"
+  },
+  "Effort": {
+    "de": "Anstrengung",
+    "fr": "Effort",
+    "es": "Esfuerzo",
+    "ja": "負荷"
+  },
+  "Gradient": {
+    "de": "Höhenverlauf",
+    "fr": "Dégradé",
+    "es": "Gradiente",
+    "ja": "標高グラデーション"
+  },
+  "Heart rate": {
+    "de": "Herzfrequenz",
+    "fr": "Fréquence cardiaque",
+    "es": "Pulso",
+    "ja": "心拍数"
+  },
+  "Power": {
+    "de": "Leistung",
+    "fr": "Puissance",
+    "es": "Potencia",
+    "ja": "パワー"
+  },
+  "Colors based on combined effort (grade and distance)": {
+    "de": "Farben nach Anstrengung (Steigung und Distanz)",
+    "fr": "Couleurs selon l'effort (pente et distance)",
+    "es": "Colores según el esfuerzo (pendiente y distancia)",
+    "ja": "負荷（勾配と距離）に応じた色"
+  },
+  "Colors based purely on elevation gradient": {
+    "de": "Farben rein nach Höhe",
+    "fr": "Couleurs selon l'altitude seule",
+    "es": "Colores solo según la altitud",
+    "ja": "標高のみに応じた色"
+  },
+  "Peak": {
+    "de": "Gipfel",
+    "fr": "Sommet",
+    "es": "Cima",
+    "ja": "ピーク"
+  },
+  "Valley": {
+    "de": "Tal",
+    "fr": "Creux",
+    "es": "Valle",
+    "ja": "谷"
+  }
 }

@@ -1222,7 +1222,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ende"
+            "value": "Ziel"
           }
         },
         "fr": {
@@ -1240,7 +1240,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "終点"
+            "value": "ゴール"
           }
         }
       }
@@ -1973,6 +1973,34 @@
         }
       }
     },
+    "Peak": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gipfel"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sommet"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cima"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ピーク"
+          }
+        }
+      }
+    },
     "Power": {
       "localizations": {
         "de": {
@@ -2584,7 +2612,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "始点"
+            "value": "スタート"
           }
         }
       }
@@ -2949,6 +2977,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "メートル法 (km)"
+          }
+        }
+      }
+    },
+    "Valley": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tal"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Creux"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valle"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "谷"
           }
         }
       }

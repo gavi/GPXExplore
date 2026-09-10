@@ -39,7 +39,8 @@ esac
 [[ $lang == en ]] || out=$here/screenshots/$lang
 base=(-AppleLanguages "($lang)" -AppleLocale $locale -useMetricSystem $metric -mapStyle Standard
       -elevationVisualizationMode Effort -trackLineWidth 5 -defaultShowElevationOverlay YES
-      -defaultShowRouteInfoOverlay YES -chartMetric Elevation -showTracksDrawer NO)
+      -defaultShowRouteInfoOverlay YES -chartMetric Elevation -showTracksDrawer NO
+      -reviewPromptDisabled YES)
 
 # name | sample file | overrides
 scenes=(
@@ -57,6 +58,20 @@ platforms=(${@:-mac iphone ipad})
 # Splits a scene's override string into words, honouring quotes ('Heart rate')
 scene_args() { local -a words; words=(${(Q)${(z)1}}); print -r -- "${(pj:\n:)words}"; }
 
+# Exit 0 when the map area (right of the info card, above the chart) is drawn: a map that
+# never drew is one flat grey with a few markers, over 80% of its pixels one colour, while a
+# drawn map has no colour above 30%
+map_drawn() {
+  python3 - "$1" <<'PY'
+import sys
+from collections import Counter
+from PIL import Image
+im = Image.open(sys.argv[1]).convert("RGB"); w, h = im.size
+px = list(im.crop((int(w*0.45), int(h*0.15), int(w*0.70), int(h*0.60))).resize((200, 160)).getdata())
+sys.exit(0 if Counter(px).most_common(1)[0][1] / len(px) < 0.6 else 1)
+PY
+}
+
 capture_mac() {
   mkdir -p $out/mac
   local helper=$here/windowid
@@ -64,16 +79,29 @@ capture_mac() {
   for scene in $scenes; do
     local name=${scene%%|*}; local rest=${scene#*|}; local file=${rest%%|*}; local extra=${rest#*|}
     [[ -n $wanted && $wanted != *$name* ]] && continue
-    pkill -x GPXExplore 2>/dev/null || true; sleep 1
     local -a args; args=($base "${(@f)$(scene_args "$extra")}")
     # A 1440×900 window (2880×1800 at 2×, an App Store Mac size) through the argument domain,
-    # so the user's own saved frame is never touched
-    open -a "$MAC_APP" "$samples/$file" --args $args "-NSWindow Frame GPXExploreDocumentWindow" "160 120 1440 900 0 0 2560 1440 "
-    sleep 9
-    local id=$($helper "GPX Explore")
-    if [[ -z $id ]]; then echo "no window for $name"; continue; fi
-    screencapture -l $id -o -x $out/mac/$name.png
-    echo "mac/$name.png $(sips -g pixelWidth -g pixelHeight $out/mac/$name.png | awk '/pixel/{printf "%s ", $2}')"
+    # so the user's own saved frame is never touched. A launch that misses the frame (the
+    # window opened at the default document size, or none showed up in time) is done again
+    # from scratch: a fresh launch fits the route to the window, a resize would not.
+    local try size id
+    for try in 1 2 3; do
+      pkill -x GPXExplore 2>/dev/null || true; sleep 1
+      open -a "$MAC_APP" "$samples/$file" --args $args -ApplePersistenceIgnoreState YES "-NSWindow Frame GPXExploreDocumentWindow" "160 120 1440 900 0 0 2560 1440 "
+      sleep 8
+      # MapKit draws nothing while another window covers the app (Gavi working in front of it
+      # while the run goes), so the capture is a window with markers on a grey ground. Bring
+      # the app forward, give it a moment, and reject a capture whose map area is flat.
+      open -a "$MAC_APP" 2>/dev/null || true; sleep 3
+      id=$($helper "GPX Explore")
+      if [[ -z $id ]]; then size="no window"; continue; fi
+      screencapture -l $id -o -x $out/mac/$name.png
+      size=$(sips -g pixelWidth -g pixelHeight $out/mac/$name.png | awk '/pixel/{printf "%s ", $2}')
+      [[ $size == "2880 1800 " ]] || continue
+      map_drawn $out/mac/$name.png && break
+      size="$size flat map"
+    done
+    echo "mac/$name.png $size (try $try)"
   done
   pkill -x GPXExplore 2>/dev/null || true
 }
