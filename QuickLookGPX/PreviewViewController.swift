@@ -40,7 +40,7 @@ class PreviewViewController: NSViewController, QLPreviewingController {
         mapView.layer?.backgroundColor = NSColor(calibratedWhite: 0.95, alpha: 1.0).cgColor
         
         // Add a background label indicating map limitations
-        let backgroundLabel = NSTextField(labelWithString: "Basemap may not appear in Quick Look")
+        let backgroundLabel = NSTextField(labelWithString: String(localized: "Basemap may not appear in Quick Look"))
         backgroundLabel.textColor = NSColor.tertiaryLabelColor
         backgroundLabel.alignment = .center
         backgroundLabel.font = NSFont.systemFont(ofSize: 14)
@@ -63,7 +63,7 @@ class PreviewViewController: NSViewController, QLPreviewingController {
         
         // A file with only waypoints is still a preview
         guard !gpxFile.tracks.isEmpty || !gpxFile.waypoints.isEmpty else {
-            statsLabel.stringValue = "No tracks or waypoints found in GPX file"
+            statsLabel.stringValue = String(localized: "No tracks or waypoints found in GPX file")
             return
         }
         
@@ -106,13 +106,13 @@ class PreviewViewController: NSViewController, QLPreviewingController {
         }
         
         // Calculate statistics for display
-        var statsText = "GPX File: \(gpxFile.filename)\n\n"
+        var statsText = String(localized: "GPX File: \(gpxFile.filename)") + "\n\n"
         
         // Basic counts
-        statsText += "Contents:\n"
-        statsText += "• \(gpxFile.tracks.count) track(s)\n"
-        statsText += "• \(gpxFile.allSegments.count) segment(s)\n"
-        statsText += "• \(gpxFile.waypoints.count) waypoint(s)\n"
+        statsText += String(localized: "Contents:") + "\n"
+        statsText += "• " + String(localized: "\(gpxFile.tracks.count) tracks") + "\n"
+        statsText += "• " + String(localized: "\(gpxFile.allSegments.count) segments") + "\n"
+        statsText += "• " + String(localized: "\(gpxFile.waypoints.count) waypoints") + "\n"
         
         // Calculate totals
         var totalDistance = 0.0
