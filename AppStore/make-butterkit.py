@@ -87,16 +87,16 @@ PRESETS = {
         # The flat screen your iSeismometer and Seismica boards use, nudged up so the text
         # sits under it (paddingTop is a percentage of the board height: ~88 is the bottom)
         "model": {"assetName": "Generic", "instanceLabel": "Generic",
-                  "rotationEuler": [0, 0, 0], "scale": [0.72, 0.72, 0.72],
-                  "positionOffset": [0, 0.035, 0], "deviceStyle": "uiOnly"},
+                  "rotationEuler": [0, 0, 0], "scale": [0.78, 0.78, 0.78],
+                  "positionOffset": [0, 0.045, 0], "deviceStyle": "uiOnly"},
         "hero_model": {"assetName": "Generic", "instanceLabel": "Generic",
-                       "rotationEuler": [0, 0, 0], "scale": [0.72, 0.72, 0.72],
-                       "positionOffset": [0, 0.035, 0], "deviceStyle": "uiOnly"},
-        "caption": {"sizePt": 44, "paddingTop": 88, "paddingSides": 7,
+                       "rotationEuler": [0, 0, 0], "scale": [0.78, 0.78, 0.78],
+                       "positionOffset": [0, 0.045, 0], "deviceStyle": "uiOnly"},
+        "caption": {"sizePt": 44, "paddingTop": 89, "paddingSides": 7,
                     "fontFamily": "Avenir Next", "role": "Title"},
-        "hero_title": {"sizePt": 44, "paddingTop": 84, "paddingSides": 7,
+        "hero_title": {"sizePt": 44, "paddingTop": 86, "paddingSides": 7,
                        "fontFamily": "Avenir Next", "role": "Title"},
-        "hero_subtitle": {"sizePt": 30, "paddingTop": 91.5, "paddingSides": 0,
+        "hero_subtitle": {"sizePt": 30, "paddingTop": 92.5, "paddingSides": 0,
                           "fontFamily": "System Default", "role": "SubTitle"},
     },
 }
