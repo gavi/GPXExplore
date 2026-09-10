@@ -133,7 +133,7 @@ struct RouteInfoOverlay: View {
                         Text("Max \(StatsFormat.speed(maxSpeed, metric: metric))")
                     }
                     if !compact {
-                        Text("\(stats.pointCount) points · \(stats.segmentCount) segment\(stats.segmentCount == 1 ? "" : "s")")
+                        Text("\(stats.pointCount) points · \(stats.segmentCount) segments")   // plural forms live in the string catalog
                     }
                 }
                 .font(.caption)
@@ -195,13 +195,14 @@ struct RouteInfoOverlay: View {
         return speed < 4.0   // under ~14 km/h: walking, hiking, running
     }
 
-    private func stat(_ value: String, _ label: String, _ font: Font, color: Color = .primary) -> some View {
+    private func stat(_ value: String, _ label: LocalizedStringKey, _ font: Font, color: Color = .primary) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(value).font(font).fontWeight(.semibold).foregroundColor(color).lineLimit(1)
             Text(label).font(.caption2).foregroundColor(.secondary)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(label) \(value)")
+        .accessibilityLabel(Text(label))
+        .accessibilityValue(value)
     }
 
     private var legend: some View {

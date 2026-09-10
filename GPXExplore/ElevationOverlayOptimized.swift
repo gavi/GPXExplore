@@ -13,6 +13,7 @@ enum ChartMetric: String, CaseIterable, Identifiable {
     case temperature = "Temperature"
 
     var id: String { rawValue }
+    var title: LocalizedStringKey { LocalizedStringKey(rawValue) }
 
     var systemImage: String {
         switch self {
@@ -180,13 +181,13 @@ struct ElevationOverlay: View {
                         if showsHeader {
                         HStack(spacing: 8) {
                             if !compact {
-                                Text(metric == .elevation ? "Elevation Profile" : metric.rawValue)
+                                Text(metric == .elevation ? LocalizedStringKey("Elevation Profile") : metric.title)
                                     .font(.headline)
                             }
                             if available.count > 1 {
                                 Picker("Metric", selection: $metric) {
                                     ForEach(available) { m in
-                                        Label(m.rawValue, systemImage: m.systemImage).tag(m)
+                                        Label(m.title, systemImage: m.systemImage).tag(m)
                                     }
                                 }
                                 .pickerStyle(.menu)

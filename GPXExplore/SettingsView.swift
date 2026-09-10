@@ -46,7 +46,7 @@ struct SettingsView: View {
                                 .padding(.top, 8)
                             Picker("Map Style", selection: $settings.mapStyle) {
                                 ForEach(MapStyle.allCases) { style in
-                                    Text(style.rawValue).tag(style)
+                                    Text(style.title).tag(style)
                                 }
                             }
                             .pickerStyle(SegmentedPickerStyle())
@@ -73,12 +73,12 @@ struct SettingsView: View {
                                 .padding(.top, 8)
                             Picker("Visualization Mode", selection: $settings.elevationVisualizationMode) {
                                 ForEach(ElevationVisualizationMode.allCases) { mode in
-                                    Text(mode.rawValue).tag(mode)
+                                    Text(mode.title).tag(mode)
                                 }
                             }
                             .pickerStyle(SegmentedPickerStyle())
                             
-                            Text(settings.elevationVisualizationMode.description)
+                            Text(LocalizedStringKey(settings.elevationVisualizationMode.description))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                                 .padding(.top, 4)
@@ -173,7 +173,7 @@ struct SettingsView: View {
             Section(header: Text("Map")) {
                 Picker("Map Style", selection: $settings.mapStyle) {
                     ForEach(MapStyle.allCases) { style in
-                        Text(style.rawValue).tag(style)
+                        Text(style.title).tag(style)
                     }
                 }
                 .pickerStyle(SegmentedPickerStyle())
@@ -188,12 +188,12 @@ struct SettingsView: View {
             Section(header: Text("Elevation Visualization")) {
                 Picker("Visualization Mode", selection: $settings.elevationVisualizationMode) {
                     ForEach(ElevationVisualizationMode.allCases) { mode in
-                        Text(mode.rawValue).tag(mode)
+                        Text(mode.title).tag(mode)
                     }
                 }
                 .pickerStyle(SegmentedPickerStyle())
                 
-                Text(settings.elevationVisualizationMode.description)
+                Text(LocalizedStringKey(settings.elevationVisualizationMode.description))
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .padding(.top, 4)

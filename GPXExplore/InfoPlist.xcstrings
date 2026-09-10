@@ -1,0 +1,33 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "NSLocationAlwaysAndWhenInUseUsageDescription" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Shows your current location on the map to help you follow routes" } },
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Zeigt deinen aktuellen Standort auf der Karte, damit du Routen folgen kannst" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Affiche votre position sur la carte pour vous aider à suivre les itinéraires" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Muestra tu ubicación en el mapa para ayudarte a seguir las rutas" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ルートをたどれるように、現在地を地図に表示します" } }
+      }
+    },
+    "NSLocationUsageDescription" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Shows your current location on the map to help you follow routes" } },
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Zeigt deinen aktuellen Standort auf der Karte, damit du Routen folgen kannst" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Affiche votre position sur la carte pour vous aider à suivre les itinéraires" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Muestra tu ubicación en el mapa para ayudarte a seguir las rutas" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ルートをたどれるように、現在地を地図に表示します" } }
+      }
+    },
+    "NSLocationWhenInUseUsageDescription" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Shows your current location on the map to help you follow routes" } },
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Zeigt deinen aktuellen Standort auf der Karte, damit du Routen folgen kannst" } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Affiche votre position sur la carte pour vous aider à suivre les itinéraires" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Muestra tu ubicación en el mapa para ayudarte a seguir las rutas" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ルートをたどれるように、現在地を地図に表示します" } }
+      }
+    }
+  },
+  "version" : "1.0"
+}

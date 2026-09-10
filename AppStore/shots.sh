@@ -6,6 +6,7 @@
 #   AppStore/shots.sh                # everything
 #   AppStore/shots.sh mac            # one platform: mac | iphone | ipad
 #   SCENES=02-heart-rate AppStore/shots.sh iphone
+#   UI_LANG=de AppStore/shots.sh iphone   # the German app, into screenshots/de/
 #
 # Needs a Debug build of the Mac app and of the simulator app (xcodebuild, see CLAUDE.md);
 # MAC_APP / SIM_APP override the DerivedData lookup. Writes AppStore/screenshots/<platform>/.
@@ -24,7 +25,19 @@ IPAD=${IPAD:-"iPad Pro 13-inch (M4)"}
 
 # Every scene starts from the same settings: US units, standard map, effort colouring,
 # both overlays on, elevation chart, drawer closed. Scenes override what they need.
-base=(-AppleLanguages "(en)" -AppleLocale en_US -useMetricSystem NO -mapStyle Standard
+# UI_LANG=de (fr, es, ja) captures the localised app into screenshots/<lang>/<platform>/;
+# unset means English into screenshots/<platform>/. Locale and units follow the language.
+lang=${UI_LANG:-en}
+case $lang in
+  en) locale=en_US; metric=NO ;;
+  de) locale=de_DE; metric=YES ;;
+  fr) locale=fr_FR; metric=YES ;;
+  es) locale=es_ES; metric=YES ;;
+  ja) locale=ja_JP; metric=YES ;;
+  *)  locale=${lang}_${(U)lang}; metric=YES ;;
+esac
+[[ $lang == en ]] || out=$here/screenshots/$lang
+base=(-AppleLanguages "($lang)" -AppleLocale $locale -useMetricSystem $metric -mapStyle Standard
       -elevationVisualizationMode Effort -trackLineWidth 5 -defaultShowElevationOverlay YES
       -defaultShowRouteInfoOverlay YES -chartMetric Elevation -showTracksDrawer NO)
 

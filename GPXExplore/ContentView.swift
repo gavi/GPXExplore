@@ -143,7 +143,7 @@ struct ContentView: View {
                             }
                         } else if !document.waypoints.isEmpty {
                             VStack {
-                                Text("\(document.waypoints.count) waypoint\(document.waypoints.count == 1 ? "" : "s"), no tracks")
+                                Text("\(document.waypoints.count) waypoints, no tracks")   // plural forms live in the string catalog
                                     .font(.subheadline)
                                     .padding(8)
                                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
@@ -168,7 +168,7 @@ struct ContentView: View {
                                     Button {
                                         settings.mapStyle = style
                                     } label: {
-                                        Label(style.rawValue, systemImage: style.iconName)
+                                        Label(style.title, systemImage: style.iconName)
                                     }
                                     .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
                                 }
@@ -339,7 +339,7 @@ struct ContentView: View {
             exportedImageURL = try await MapImageExporter.export(segments: segmentsToDraw, stats: stats, chartImage: chartImage, options: options)
             ReviewPrompt.goodMoment()
         } catch {
-            exportError = "The map could not be rendered. \(error.localizedDescription)"
+            exportError = String(localized: "The map could not be rendered.") + " " + error.localizedDescription
         }
     }
 }

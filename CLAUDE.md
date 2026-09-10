@@ -70,3 +70,13 @@ store notes; read it first.
   is system-generated from the app icon (`CFBundleTypeIconSystemGenerated`); do not name an
   icon file the bundle does not carry, and do not put an `.iconset` in the asset catalog. The
   document type claims `com.topografix.gpx` only, never `public.xml`. Source art in `Design/`.
+
+## Localization
+- UI strings live in `GPXExplore/Localizable.xcstrings` (English source; German, French, Spanish,
+  Japanese) and `GPXExplore/InfoPlist.xcstrings`. The catalog is generated, not hand-edited:
+  translations are in `Localization/translations.json` (plural forms as `one`/`other`), keys
+  the compiler cannot see in `Localization/extra-keys.json`, and
+  `~/work/apple/tools/xcstrings.py` builds the catalog from a harvest of `*.stringsdata`
+  (skill `localize-app`). Write UI text as literal `Text("…")`/`LocalizedStringKey`; enums
+  shown in the UI expose a `title`; helpers that return display strings use `String(localized:)`;
+  never build plurals by appending "s".
