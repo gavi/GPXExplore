@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Builds the GPXExplore.butterkit package from the captured screenshots.
 
-    python3 AppStore/make-butterkit.py [--shots AppStore/screenshots] [--out "<iCloud ButterKit dir>"]
+    python3 AppStore/make-butterkit.py [--shots AppStore/screenshots] [--out "<iCloud ButterKit dir>"] [--lang de]
 
 Reads AppStore/screenshots/{iphone-6.9,ipad-13,mac}/<scene>.png (written by AppStore/shots.sh)
 and writes a ButterKit document with one artboard per scene for each size class. Re-running
@@ -36,6 +36,44 @@ SCENES = [
 
 HERO_TITLE = "GPX Explore"
 HERO_SUBTITLE = "Open a GPX file. See the whole ride."
+
+# Captions per language for --lang; the captures come from `UI_LANG=<lang> shots.sh` into
+# screenshots/<lang>/ and the package is written as GPXExplore-<lang>.butterkit, one per
+# language, so ButterKit publishes each set for its App Store localisation.
+CAPTIONS = {
+    "de": {
+        "subtitle": "GPX-Datei öffnen. Die ganze Tour sehen.",
+        "02-heart-rate": "Herzfrequenz, Leistung, Trittfrequenz, Tempo",
+        "03-satellite": "Sieh den Anstieg, bevor du ihn fährst",
+        "06-speed": "Bewegungszeit, Tempo und Splits",
+        "04-tracks": "Jeder Track, jedes Segment, jeder Wegpunkt",
+        "05-gradient": "Farbe nach Steigung oder nach Höhe",
+    },
+    "fr": {
+        "subtitle": "Ouvrez un GPX. Voyez toute la sortie.",
+        "02-heart-rate": "Cardio, puissance, cadence, vitesse",
+        "03-satellite": "Voyez la pente avant de la rouler",
+        "06-speed": "Temps en mouvement, allure, intermédiaires",
+        "04-tracks": "Chaque trace, segment et point d'intérêt",
+        "05-gradient": "Couleur selon la pente ou l'altitude",
+    },
+    "es": {
+        "subtitle": "Abre un GPX. Mira la salida entera.",
+        "02-heart-rate": "Pulso, potencia, cadencia, velocidad",
+        "03-satellite": "Mira la subida antes de hacerla",
+        "06-speed": "Tiempo en movimiento, ritmo y parciales",
+        "04-tracks": "Cada track, segmento y waypoint",
+        "05-gradient": "Color por pendiente o por altitud",
+    },
+    "ja": {
+        "subtitle": "GPXを開く。走った全部が見える。",
+        "02-heart-rate": "心拍・パワー・ケイデンス・速度",
+        "03-satellite": "走る前に登りが見える",
+        "06-speed": "移動時間・ペース・スプリット",
+        "04-tracks": "トラック、セグメント、ウェイポイント",
+        "05-gradient": "勾配または標高で色分け",
+    },
+}
 
 BACKGROUND = {"image": {"fill": "fill", "ref": {"name": "preset-bg-5", "type": "bundle"}}}
 
@@ -142,8 +180,11 @@ def model_block(spec, asset_filename):
     }
 
 
-def build(shots_dir, out_dir):
-    package = os.path.join(out_dir, "GPXExplore.butterkit")
+def build(shots_dir, out_dir, lang=None):
+    captions = CAPTIONS.get(lang, {}) if lang else {}
+    if lang:
+        shots_dir = os.path.join(shots_dir, lang)
+    package = os.path.join(out_dir, f"GPXExplore-{lang}.butterkit" if lang else "GPXExplore.butterkit")
     assets = os.path.join(package, "Assets")
     if os.path.exists(package):
         shutil.rmtree(package)
@@ -164,10 +205,10 @@ def build(shots_dir, out_dir):
             if is_hero:
                 texts = [
                     text_block(HERO_TITLE, 0, preset["hero_title"], "heavy", "#F5FCFFFF"),
-                    text_block(HERO_SUBTITLE, 1, preset["hero_subtitle"], "regular", "#C9D3DCFF"),
+                    text_block(captions.get("subtitle", HERO_SUBTITLE), 1, preset["hero_subtitle"], "regular", "#C9D3DCFF"),
                 ]
             else:
-                texts = [text_block(caption, 0, preset["caption"], "heavy", "#FFFFFFFF")]
+                texts = [text_block(captions.get(shot, caption), 0, preset["caption"], "heavy", "#FFFFFFFF")]
 
             x = (index - (count - 1) / 2) * preset["spacing"]
             sequence += 1
@@ -187,7 +228,7 @@ def build(shots_dir, out_dir):
                 "imageBlocks": [],
             })
 
-    document = {"schemaVersion": 1, "baseLanguageCode": "en", "artboards": artboards}
+    document = {"schemaVersion": 1, "baseLanguageCode": lang or "en", "artboards": artboards}
     with open(os.path.join(package, "Document.json"), "w") as handle:
         json.dump(document, handle, indent=2)
     print(f"wrote {package}: {len(artboards)} artboards, {len(os.listdir(assets))} assets")
@@ -197,5 +238,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--shots", default=DEFAULT_SHOTS)
     parser.add_argument("--out", default=DEFAULT_OUT)
+    parser.add_argument("--lang", help="de, fr, es or ja: captures from screenshots/<lang>/, captions in that language, package GPXExplore-<lang>.butterkit")
     args = parser.parse_args()
-    build(args.shots, args.out)
+    build(args.shots, args.out, args.lang)
