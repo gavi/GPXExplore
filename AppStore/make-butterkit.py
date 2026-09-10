@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """Builds the GPXExplore.butterkit package from the captured screenshots.
 
-    python3 AppStore/make-butterkit.py [--shots AppStore/screenshots] [--out "<iCloud ButterKit dir>"] [--lang de]
+    python3 AppStore/make-butterkit.py [--shots AppStore/screenshots] [--out "<iCloud ButterKit dir>"]
 
 Reads AppStore/screenshots/{iphone-6.9,ipad-13,mac}/<scene>.png (written by AppStore/shots.sh)
-and writes a ButterKit document with one artboard per scene for each size class. Re-running
-replaces the package, so edit the SCENES table below rather than the artboards in ButterKit if
-you want the changes to survive a recapture. Quit ButterKit before running: it caches the
-document and assets while the package is open.
+and writes a ButterKit document with one artboard per scene for each size class, English as
+the source language, plus a language variant of every artboard for each language in LANGUAGES
+whose captures exist in AppStore/screenshots/<lang>/ (UI_LANG=<lang> AppStore/shots.sh): the
+caption from CAPTIONS and that language's screenshot on the device. One package, the
+localizations ButterKit shows in its Localizations panel and uploads per App Store locale.
+Re-running replaces the package, so edit the tables below rather than the artboards in
+ButterKit if you want the changes to survive a recapture. Quit ButterKit before running: it
+caches the document and assets while the package is open.
 
 Publishing the boards from ButterKit and uploading them to App Store Connect is Gavi's step.
 """
@@ -37,9 +41,11 @@ SCENES = [
 HERO_TITLE = "GPX Explore"
 HERO_SUBTITLE = "Open a GPX file. See the whole ride."
 
-# Captions per language for --lang; the captures come from `UI_LANG=<lang> shots.sh` into
-# screenshots/<lang>/ and the package is written as GPXExplore-<lang>.butterkit, one per
-# language, so ButterKit publishes each set for its App Store localisation.
+# The languages that become variants, in the order ButterKit lists them; a language without
+# captures in screenshots/<lang>/ is skipped with a note.
+LANGUAGES = ["de", "fr", "es", "ja"]
+
+# Captions per language; the captures come from `UI_LANG=<lang> shots.sh` into screenshots/<lang>/.
 CAPTIONS = {
     "de": {
         "subtitle": "GPX-Datei öffnen. Die ganze Tour sehen.",
@@ -180,39 +186,75 @@ def model_block(spec, asset_filename):
     }
 
 
-def build(shots_dir, out_dir, lang=None):
-    captions = CAPTIONS.get(lang, {}) if lang else {}
-    if lang:
-        shots_dir = os.path.join(shots_dir, lang)
-    package = os.path.join(out_dir, f"GPXExplore-{lang}.butterkit" if lang else "GPXExplore.butterkit")
+def variant(base, lang, captions, shot, is_hero, asset_filename):
+    """The language variant of a base artboard: same geometry and text ids (ButterKit links the
+    styles, background and callouts to the base), translated strings, its own device with the
+    localized screenshot, parentID and variation as ButterKit writes them."""
+    texts = []
+    for block in base["textBlocks"]:
+        block = dict(block)
+        # `string` stays the English source; the variant shows `translatedString`. The app
+        # name is the same in every language (ButterKit's own translator would render it).
+        if is_hero:
+            block["translatedString"] = captions["subtitle"] if block["role"] == "SubTitle" else HERO_TITLE
+        else:
+            block["translatedString"] = captions[shot]
+        texts.append(block)
+    models = []
+    for model in base["models"]:
+        model = dict(model)
+        model["id"] = model["sourceModelID"] = new_id()
+        model["screenImageFilename"] = asset_filename
+        models.append(model)
+    out = dict(base)
+    out.update({
+        "id": new_id(),
+        "parentID": base["id"],
+        "variation": {"code": lang, "kind": "language"},
+        "linkBackground": True, "linkCallouts": True, "linkImages": True, "linkTextStyles": True,
+        "textBlocks": texts,
+        "models": models,
+    })
+    return out
+
+
+def build(shots_dir, out_dir):
+    package = os.path.join(out_dir, "GPXExplore.butterkit")
     assets = os.path.join(package, "Assets")
     if os.path.exists(package):
         shutil.rmtree(package)
     os.makedirs(assets)
+
+    languages = [lang for lang in LANGUAGES if os.path.isdir(os.path.join(shots_dir, lang))]
+    for lang in LANGUAGES:
+        if lang not in languages:
+            print(f"no captures in {os.path.join(shots_dir, lang)}: {lang} left out")
+
+    def copy_asset(path):
+        if not os.path.exists(path):
+            sys.exit(f"missing screenshot: {path}")
+        asset_filename = f"{new_id()}.png"
+        shutil.copyfile(path, os.path.join(assets, asset_filename))
+        return asset_filename
 
     artboards = []
     sequence = 0
     for preset_name, preset in PRESETS.items():
         count = len(SCENES)
         for index, (shot, caption) in enumerate(SCENES):
-            source = os.path.join(shots_dir, preset["folder"], f"{shot}.png")
-            if not os.path.exists(source):
-                sys.exit(f"missing screenshot: {source}")
-            asset_filename = f"{new_id()}.png"
-            shutil.copyfile(source, os.path.join(assets, asset_filename))
-
+            asset_filename = copy_asset(os.path.join(shots_dir, preset["folder"], f"{shot}.png"))
             is_hero = caption is None
             if is_hero:
                 texts = [
                     text_block(HERO_TITLE, 0, preset["hero_title"], "heavy", "#F5FCFFFF"),
-                    text_block(captions.get("subtitle", HERO_SUBTITLE), 1, preset["hero_subtitle"], "regular", "#C9D3DCFF"),
+                    text_block(HERO_SUBTITLE, 1, preset["hero_subtitle"], "regular", "#C9D3DCFF"),
                 ]
             else:
-                texts = [text_block(captions.get(shot, caption), 0, preset["caption"], "heavy", "#FFFFFFFF")]
+                texts = [text_block(caption, 0, preset["caption"], "heavy", "#FFFFFFFF")]
 
             x = (index - (count - 1) / 2) * preset["spacing"]
             sequence += 1
-            artboards.append({
+            base = {
                 "id": new_id(),
                 "name": f"{preset_name} hero" if is_hero else f"{preset_name} {shot}",
                 "sequenceIndex": sequence,
@@ -222,22 +264,35 @@ def build(shots_dir, out_dir, lang=None):
                 "cameraProjection": "perspective",
                 "perspectiveFOVDeg": 35,
                 "orthoHeight": 0.18917927,
+                "spanDevicesEnabled": False,
                 "background": BACKGROUND,
                 "models": [model_block(preset["hero_model"] if is_hero else preset["model"], asset_filename)],
                 "textBlocks": texts,
                 "imageBlocks": [],
-            })
+            }
+            artboards.append(base)
+            for lang in languages:
+                localized = copy_asset(os.path.join(shots_dir, lang, preset["folder"], f"{shot}.png"))
+                artboards.append(variant(base, lang, CAPTIONS[lang], shot, is_hero, localized))
 
-    document = {"schemaVersion": 1, "baseLanguageCode": lang or "en", "artboards": artboards}
+    document = {
+        "schemaVersion": 1,
+        "baseLanguageCode": "en-US",
+        "metadata": {},
+        "translationEngineByLanguage": {},
+        "translationCloudConfigIDByLanguage": {},
+        "artboards": artboards,
+    }
     with open(os.path.join(package, "Document.json"), "w") as handle:
-        json.dump(document, handle, indent=2)
-    print(f"wrote {package}: {len(artboards)} artboards, {len(os.listdir(assets))} assets")
+        json.dump(document, handle, indent=2, ensure_ascii=False)
+    bases = sum(1 for a in artboards if "parentID" not in a)
+    print(f"wrote {package}: {bases} artboards, {len(artboards) - bases} language variants "
+          f"({', '.join(languages) or 'none'}), {len(os.listdir(assets))} assets")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--shots", default=DEFAULT_SHOTS)
     parser.add_argument("--out", default=DEFAULT_OUT)
-    parser.add_argument("--lang", help="de, fr, es or ja: captures from screenshots/<lang>/, captions in that language, package GPXExplore-<lang>.butterkit")
     args = parser.parse_args()
-    build(args.shots, args.out, args.lang)
+    build(args.shots, args.out)
