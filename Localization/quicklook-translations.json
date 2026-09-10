@@ -1,9 +1,125 @@
 {
-  "Basemap may not appear in Quick Look": {"de": "Die Basiskarte erscheint in Quick Look möglicherweise nicht", "fr": "Le fond de carte peut ne pas apparaître dans Coup d'œil", "es": "El mapa base puede no aparecer en Vista rápida", "ja": "クイックルックでは地図の背景が表示されないことがあります"},
-  "No tracks or waypoints found in GPX file": {"de": "Keine Tracks oder Wegpunkte in der GPX-Datei", "fr": "Aucune trace ni point d'intérêt dans le fichier GPX", "es": "No hay tracks ni waypoints en el archivo GPX", "ja": "GPXファイルにトラックもウェイポイントもありません"},
-  "GPX File: %@": {"de": "GPX-Datei: %@", "fr": "Fichier GPX : %@", "es": "Archivo GPX: %@", "ja": "GPXファイル: %@"},
-  "Contents:": {"de": "Inhalt:", "fr": "Contenu :", "es": "Contenido:", "ja": "内容:"},
-  "%lld tracks": {"en": {"one": "%lld track", "other": "%lld tracks"}, "de": {"one": "%lld Track", "other": "%lld Tracks"}, "fr": {"one": "%lld trace", "other": "%lld traces"}, "es": {"one": "%lld track", "other": "%lld tracks"}, "ja": {"other": "%lldトラック"}},
-  "%lld segments": {"en": {"one": "%lld segment", "other": "%lld segments"}, "de": {"one": "%lld Segment", "other": "%lld Segmente"}, "fr": {"one": "%lld segment", "other": "%lld segments"}, "es": {"one": "%lld segmento", "other": "%lld segmentos"}, "ja": {"other": "%lldセグメント"}},
-  "%lld waypoints": {"en": {"one": "%lld waypoint", "other": "%lld waypoints"}, "de": {"one": "%lld Wegpunkt", "other": "%lld Wegpunkte"}, "fr": {"one": "%lld point d'intérêt", "other": "%lld points d'intérêt"}, "es": {"one": "%lld waypoint", "other": "%lld waypoints"}, "ja": {"other": "%lldウェイポイント"}}
+  "Basemap may not appear in Quick Look": {
+    "de": "Die Basiskarte erscheint in Quick Look möglicherweise nicht",
+    "fr": "Le fond de carte peut ne pas apparaître dans Coup d'œil",
+    "es": "El mapa base puede no aparecer en Vista rápida",
+    "ja": "クイックルックでは地図の背景が表示されないことがあります"
+  },
+  "No tracks or waypoints found in GPX file": {
+    "de": "Keine Tracks oder Wegpunkte in der GPX-Datei",
+    "fr": "Aucune trace ni point d'intérêt dans le fichier GPX",
+    "es": "No hay tracks ni waypoints en el archivo GPX",
+    "ja": "GPXファイルにトラックもウェイポイントもありません"
+  },
+  "GPX File: %@": {
+    "de": "GPX-Datei: %@",
+    "fr": "Fichier GPX : %@",
+    "es": "Archivo GPX: %@",
+    "ja": "GPXファイル: %@"
+  },
+  "Contents:": {
+    "de": "Inhalt:",
+    "fr": "Contenu :",
+    "es": "Contenido:",
+    "ja": "内容:"
+  },
+  "%lld tracks": {
+    "en": {
+      "one": "%lld track",
+      "other": "%lld tracks"
+    },
+    "de": {
+      "one": "%lld Track",
+      "other": "%lld Tracks"
+    },
+    "fr": {
+      "one": "%lld trace",
+      "other": "%lld traces"
+    },
+    "es": {
+      "one": "%lld track",
+      "other": "%lld tracks"
+    },
+    "ja": {
+      "other": "%lldトラック"
+    }
+  },
+  "%lld segments": {
+    "en": {
+      "one": "%lld segment",
+      "other": "%lld segments"
+    },
+    "de": {
+      "one": "%lld Segment",
+      "other": "%lld Segmente"
+    },
+    "fr": {
+      "one": "%lld segment",
+      "other": "%lld segments"
+    },
+    "es": {
+      "one": "%lld segmento",
+      "other": "%lld segmentos"
+    },
+    "ja": {
+      "other": "%lldセグメント"
+    }
+  },
+  "%lld waypoints": {
+    "en": {
+      "one": "%lld waypoint",
+      "other": "%lld waypoints"
+    },
+    "de": {
+      "one": "%lld Wegpunkt",
+      "other": "%lld Wegpunkte"
+    },
+    "fr": {
+      "one": "%lld point d'intérêt",
+      "other": "%lld points d'intérêt"
+    },
+    "es": {
+      "one": "%lld waypoint",
+      "other": "%lld waypoints"
+    },
+    "ja": {
+      "other": "%lldウェイポイント"
+    }
+  },
+  "Stats:": {
+    "de": "Statistik:",
+    "fr": "Statistiques :",
+    "es": "Estadísticas:",
+    "ja": "統計:"
+  },
+  "Distance: %@": {
+    "de": "Distanz: %@",
+    "fr": "Distance : %@",
+    "es": "Distancia: %@",
+    "ja": "距離: %@"
+  },
+  "Duration: %@": {
+    "de": "Dauer: %@",
+    "fr": "Durée : %@",
+    "es": "Duración: %@",
+    "ja": "所要時間: %@"
+  },
+  "Elevation Gain: %@": {
+    "de": "Bergauf: %@",
+    "fr": "Dénivelé positif : %@",
+    "es": "Desnivel positivo: %@",
+    "ja": "獲得標高: %@"
+  },
+  "Elevation Loss: %@": {
+    "de": "Bergab: %@",
+    "fr": "Dénivelé négatif : %@",
+    "es": "Desnivel negativo: %@",
+    "ja": "下降: %@"
+  },
+  "Total Points: %lld": {
+    "de": "Punkte gesamt: %lld",
+    "fr": "Points au total : %lld",
+    "es": "Puntos en total: %lld",
+    "ja": "総ポイント数: %lld"
+  }
 }

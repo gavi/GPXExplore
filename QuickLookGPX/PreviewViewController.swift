@@ -147,21 +147,21 @@ class PreviewViewController: NSViewController, QLPreviewingController {
         }
         
         // Format statistics
-        statsText += "\nStats:\n"
+        statsText += "\n" + String(localized: "Stats:") + "\n"
         
         // Distance
         let distanceFormatter = MeasurementFormatter()
         distanceFormatter.unitOptions = .providedUnit
         distanceFormatter.numberFormatter.maximumFractionDigits = 1
         let distanceMeasurement = Measurement(value: totalDistance, unit: UnitLength.meters)
-        statsText += "• Distance: \(distanceFormatter.string(from: distanceMeasurement))\n"
+        statsText += "• " + String(localized: "Distance: \(distanceFormatter.string(from: distanceMeasurement))") + "\n"
         
         // Duration, only when the file has timestamps
         let durationFormatter = DateComponentsFormatter()
         durationFormatter.allowedUnits = [.hour, .minute, .second]
         durationFormatter.unitsStyle = .abbreviated
         if hasTime, let formattedDuration = durationFormatter.string(from: totalTime) {
-            statsText += "• Duration: \(formattedDuration)\n"
+            statsText += "• " + String(localized: "Duration: \(formattedDuration)") + "\n"
         }
         
         // Elevation, only when the file has it
@@ -171,10 +171,10 @@ class PreviewViewController: NSViewController, QLPreviewingController {
             elevFormatter.numberFormatter.maximumFractionDigits = 0
             let ascentMeasurement = Measurement(value: totalAscent, unit: UnitLength.meters)
             let descentMeasurement = Measurement(value: totalDescent, unit: UnitLength.meters)
-            statsText += "• Elevation Gain: \(elevFormatter.string(from: ascentMeasurement))\n"
-            statsText += "• Elevation Loss: \(elevFormatter.string(from: descentMeasurement))\n"
+            statsText += "• " + String(localized: "Elevation Gain: \(elevFormatter.string(from: ascentMeasurement))") + "\n"
+            statsText += "• " + String(localized: "Elevation Loss: \(elevFormatter.string(from: descentMeasurement))") + "\n"
         }
-        statsText += "• Total Points: \(pointCount)"
+        statsText += "• " + String(localized: "Total Points: \(pointCount)")
         
         // Update stats label
         statsLabel.stringValue = statsText
