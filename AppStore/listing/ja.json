@@ -11,7 +11,7 @@
     "keywords": "gps,軌跡,ルート,地図,ハイキング,サイクリング,ランニング,garmin,strava,fit,標高,心拍,mac",
     "whatsNew": "• GPXに含まれる心拍数、パワー、ケイデンス、速度、気温を読み込んでグラフ表示。系列はグラフの上で切り替え\n• 本当の要約: 移動時間、平均ペースまたは速度、最高速度、獲得標高と下降、1kmまたは1マイルごとのスプリット\n• GPXファイルの共有、地図とグラフの画像書き出し\n• 小数点付きタイムスタンプ、標高なし、時刻なし、ウェイポイントのみのファイルも正しく開けます\n• クイックルックが勾配で色分けした軌跡を表示\n• Mac: 設定 ⌘,、全体表示 ⌘0、グラフ ⌘E、ルートカード ⌘I、地図の種類 ⌘1〜3 のショートカット\n• FinderでGPXファイルに専用の書類アイコン。GPX Exploreをデフォルトのアプリにできます\n• 大きなファイルが数倍速く開きます\n• 何度かファイルを開いた後に評価をお願いします",
     "promotionalText": "GPXを開けば走った全部が見える。勾配は色で、心拍とパワーはグラフで、移動時間・ペース・スプリットも。無料、アカウント不要、データは端末から出ません。",
-    "supportUrl": "https://www.objectgraph.com/gpxexplore",
-    "marketingUrl": "https://www.objectgraph.com/gpxexplore"
+    "supportUrl": "https://objectgraph.com/gpxexplore",
+    "marketingUrl": "https://objectgraph.com/gpxexplore"
   }
 }

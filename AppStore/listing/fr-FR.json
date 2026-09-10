@@ -11,7 +11,7 @@
     "keywords": "gps,trace,itinéraire,carte,randonnée,vélo,course,garmin,strava,komoot,fit,dénivelé,cardio,mac",
     "whatsNew": "• Fréquence cardiaque, puissance, cadence, vitesse et température du fichier GPX sont lues et tracées ; choisissez la série au-dessus du graphique\n• Un vrai résumé : temps en mouvement, allure ou vitesse moyenne, vitesse maximale, dénivelé positif et négatif, intermédiaires par km ou par mile\n• Partagez le fichier GPX ou exportez la carte et le graphique en image\n• Les fichiers avec fractions de seconde, sans altitude, sans temps ou avec seulement des points d'intérêt s'ouvrent correctement\n• Coup d'œil dessine la trace colorée selon la pente\n• Mac : raccourcis pour les réglages (⌘,), ajuster (⌘0), le graphique (⌘E), la fiche (⌘I) et les styles de carte (⌘1–3)\n• Une vraie icône de document pour les fichiers GPX dans le Finder ; GPX Explore peut être votre app par défaut\n• Les gros fichiers s'ouvrent plusieurs fois plus vite\n• Demande une note après quelques fichiers ouverts",
     "promotionalText": "Ouvrez un GPX, voyez toute la sortie : pente en couleur, cardio et puissance, temps en mouvement, allure, intermédiaires. Gratuit, sans compte, rien ne quitte l'appareil.",
-    "supportUrl": "https://www.objectgraph.com/gpxexplore",
-    "marketingUrl": "https://www.objectgraph.com/gpxexplore"
+    "supportUrl": "https://objectgraph.com/gpxexplore",
+    "marketingUrl": "https://objectgraph.com/gpxexplore"
   }
 }
