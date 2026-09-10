@@ -88,10 +88,10 @@ PRESETS = {
         # sits under it (paddingTop is a percentage of the board height: ~88 is the bottom)
         "model": {"assetName": "Generic", "instanceLabel": "Generic",
                   "rotationEuler": [0, 0, 0], "scale": [0.78, 0.78, 0.78],
-                  "positionOffset": [0, 0.045, 0], "deviceStyle": "uiOnly"},
+                  "positionOffset": [0, 0.008, 0], "deviceStyle": "uiOnly"},
         "hero_model": {"assetName": "Generic", "instanceLabel": "Generic",
                        "rotationEuler": [0, 0, 0], "scale": [0.78, 0.78, 0.78],
-                       "positionOffset": [0, 0.045, 0], "deviceStyle": "uiOnly"},
+                       "positionOffset": [0, 0.008, 0], "deviceStyle": "uiOnly"},
         "caption": {"sizePt": 44, "paddingTop": 89, "paddingSides": 7,
                     "fontFamily": "Avenir Next", "role": "Title"},
         "hero_title": {"sizePt": 44, "paddingTop": 86, "paddingSides": 7,
