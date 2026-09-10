@@ -401,6 +401,12 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 self.handleURLDirectly(url, in: scene)
             }
+        } else if let i = CommandLine.arguments.firstIndex(of: "-openFile"), i + 1 < CommandLine.arguments.count {
+            // The screenshot script (AppStore/shots.sh) opens a sample straight from a host path
+            let url = URL(fileURLWithPath: CommandLine.arguments[i + 1])
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                self.handleURLDirectly(url, in: scene)
+            }
         }
     }
     

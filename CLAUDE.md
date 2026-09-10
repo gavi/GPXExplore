@@ -13,6 +13,11 @@ store notes; read it first.
   and prints one block per file (points, flags, times, elevation, sensors, splits, parse time).
   `../samples/README.md` says what each file exercises and lists the expected numbers. Run it
   after any change to those two files.
+- Screenshots: `AppStore/shots.sh [mac|iphone|ipad]` (Debug builds of both; picks the newest
+  binary in DerivedData) → `AppStore/screenshots/`; `AppStore/make-butterkit.py` → the
+  ButterKit package. Scenes are driven by launch arguments read through `UserDefaults`
+  (`-mapStyle`, `-useMetricSystem`, `-chartMetric`, `-showTracksDrawer`) plus `-openFile <path>`
+  on iOS (`SceneDelegate`), which opens a host file straight into the viewer.
 - There is no test target yet (planned).
 
 ## App Functionality
@@ -45,6 +50,10 @@ store notes; read it first.
   skips gaps over a day; gain/loss accumulate with 1.5 m hysteresis; cadence ignores zeros;
   splits. Every rule has a file in `../samples` behind it. `StatsFormat` formats
   pace/speed/duration/elevation/distance.
+- **Phone layout**: `horizontalSizeClass == .compact` (iPhone) turns the route card into a
+  one-line strip that expands on tap, drops the chart panel's title and stats line, empties the
+  navigation title so the toolbar buttons fit, and presents the tracks drawer as a sheet. Keep
+  the map the largest thing on a phone; Gavi rejected the first 1.5 layout for burying it.
 - **Views**: `ContentView` (state, toolbar, share/export, shortcuts) → `MapView` (MKMapView
   representable per platform; `MapView+Common.swift` has `ElevationPolyline`, the two renderers,
   annotations), `RouteInfoOverlay` (the card), `ElevationOverlay` (chart + `ChartMetric` picker),

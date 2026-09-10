@@ -94,3 +94,7 @@ fastlane/test_output
 # Code Injection
 iOSInjectionProject/
 .aider*
+
+# Captured by AppStore/shots.sh (74 MB a set); regenerate rather than commit. windowid is its compiled helper.
+AppStore/screenshots/
+AppStore/windowid

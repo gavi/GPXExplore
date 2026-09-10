@@ -62,6 +62,14 @@ struct ElevationOverlay: View {
     // False when rendering for the exported image: no title, picker or zoom controls, just the numbers and the chart
     let showsHeader: Bool
 
+    // On a phone the panel is the picker and the chart, nothing else, and shorter
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    private var compact: Bool { sizeClass == .compact }
+    #else
+    private var compact: Bool { false }
+    #endif
+
     init(trackSegments: [GPXTrackSegment], stats: TrackStatistics, metric: Binding<ChartMetric>,
          selectedPointIndex: Binding<Int?> = .constant(nil), zoomRange: Binding<ClosedRange<Double>?> = .constant(nil),
          showsHeader: Bool = true) {
@@ -171,8 +179,10 @@ struct ElevationOverlay: View {
                     VStack(alignment: .leading, spacing: 4) {
                         if showsHeader {
                         HStack(spacing: 8) {
-                            Text(metric == .elevation ? "Elevation Profile" : metric.rawValue)
-                                .font(.headline)
+                            if !compact {
+                                Text(metric == .elevation ? "Elevation Profile" : metric.rawValue)
+                                    .font(.headline)
+                            }
                             if available.count > 1 {
                                 Picker("Metric", selection: $metric) {
                                     ForEach(available) { m in
@@ -187,6 +197,9 @@ struct ElevationOverlay: View {
                         }
                         }
 
+                        if compact && showsHeader {
+                            EmptyView()
+                        } else {
                         HStack(spacing: 16) {
                             if metric == .elevation, stats.hasElevation {
                                 HStack(spacing: 4) {
@@ -213,6 +226,7 @@ struct ElevationOverlay: View {
                                     Text("avg \(StatsFormat.speed(v, metric: useMetric))").font(.caption)
                                 }
                             }
+                        }
                         }
                     }
 
@@ -274,8 +288,8 @@ struct ElevationOverlay: View {
                         },
                         zoomRange: zoomRange
                     )
-                    .frame(height: 120)
-                    .padding(.vertical, 4)
+                    .frame(height: compact ? 96 : 120)
+                    .padding(.vertical, compact ? 0 : 4)
                 } else {
                     Text(metric == .elevation ? "This file has no elevation data." : "No \(metric.rawValue.lowercased()) data in the visible tracks.")
                         .font(.caption)
@@ -283,14 +297,15 @@ struct ElevationOverlay: View {
                         .frame(height: 40)
                 }
             }
-            .padding()
+            .padding(compact ? 10 : 16)
             #if os(iOS) || os(visionOS)
             .background(Color(UIColor.systemBackground).opacity(0.8))
             #elseif os(macOS)
             .background(Color(NSColor.windowBackgroundColor).opacity(0.8))
             #endif
             .cornerRadius(12)
-            .padding([.horizontal, .bottom])
+            .padding(.horizontal, compact ? 10 : 16)
+            .padding(.bottom, compact ? 8 : 16)
         }
     }
 

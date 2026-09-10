@@ -9,17 +9,99 @@ struct RouteInfoOverlay: View {
     var trackDescription: String? = nil
     @EnvironmentObject var settings: SettingsModel
     @State private var splitsExpanded = false
+    @State private var expanded = false
+
+    // On a phone the map is the point: the card starts as a one-line strip (name,
+    // distance, time, pace) and opens to the full card on tap. Wide screens show it all.
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    private var compact: Bool { sizeClass == .compact }
+    #else
+    private var compact: Bool { false }
+    #endif
 
     private var metric: Bool { settings.useMetricSystem }
 
     var body: some View {
         VStack {
+            Group {
+                if compact && !expanded {
+                    strip
+                } else {
+                    card
+                }
+            }
+            .padding(compact ? 10 : 16)
+            #if os(iOS)
+            .background(Color(UIColor.systemBackground).opacity(0.85))
+            #elseif os(macOS)
+            .background(Color(NSColor.windowBackgroundColor).opacity(0.85))
+            #endif
+            .cornerRadius(12)
+            // The whole card, padding included, is the hit area: a miss used to fall through
+            // to the map, where a second tap zooms it. Children keep their own gestures.
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if compact && !expanded { withAnimation(.easeInOut(duration: 0.2)) { expanded = true } }
+            }
+            .padding(.horizontal, compact ? 10 : 16)
+            .padding(.top, compact ? 8 : 16)
+            .frame(maxWidth: 560, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Spacer()
+        }
+    }
+
+    // MARK: Compact strip
+
+    private var headline: String {
+        var parts = [StatsFormat.distance(stats.distance, metric: metric)]
+        if let moving = stats.movingTime { parts.append(StatsFormat.duration(moving)) }
+        if let pace = stats.averagePace, let speed = stats.averageSpeed {
+            parts.append(paceStyle ? StatsFormat.pace(pace, metric: metric) : StatsFormat.speed(speed, metric: metric))
+        }
+        return parts.joined(separator: "  ·  ")
+    }
+
+    private var strip: some View {
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(trackName).font(.subheadline.weight(.semibold)).lineLimit(1)
+                Text(headline).font(.caption.monospacedDigit()).foregroundColor(.secondary).lineLimit(1)
+            }
+            Spacer(minLength: 4)
+            Image(systemName: "chevron.down").font(.body.weight(.semibold)).foregroundColor(.secondary)
+                .frame(width: 32, height: 32)
+        }
+        .frame(minHeight: 32)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(trackName), \(headline). Show details")
+    }
+
+    // MARK: Full card
+
+    private var card: some View {
             VStack(alignment: .leading, spacing: 8) {
-                // Name, and the file's description when it has one
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(trackName).font(.headline).lineLimit(1)
-                    if let d = trackDescription, !d.isEmpty {
-                        Text(d).font(.caption).foregroundColor(.secondary).lineLimit(2)
+                // Name, and the file's description when it has one (not on a phone: no room)
+                HStack(alignment: .top, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(trackName).font(.headline).lineLimit(1)
+                        if !compact, let d = trackDescription, !d.isEmpty {
+                            Text(d).font(.caption).foregroundColor(.secondary).lineLimit(2)
+                        }
+                    }
+                    if compact {
+                        Spacer(minLength: 4)
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) { expanded = false }
+                        } label: {
+                            Image(systemName: "chevron.up").font(.body.weight(.semibold)).foregroundColor(.secondary)
+                                .frame(width: 44, height: 36)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Hide details")
                     }
                 }
 
@@ -50,10 +132,13 @@ struct RouteInfoOverlay: View {
                     if let maxSpeed = stats.maxSpeed {
                         Text("Max \(StatsFormat.speed(maxSpeed, metric: metric))")
                     }
-                    Text("\(stats.pointCount) points · \(stats.segmentCount) segment\(stats.segmentCount == 1 ? "" : "s")")
+                    if !compact {
+                        Text("\(stats.pointCount) points · \(stats.segmentCount) segment\(stats.segmentCount == 1 ? "" : "s")")
+                    }
                 }
                 .font(.caption)
                 .foregroundColor(.secondary)
+                .lineLimit(1)
 
                 // Elevation, only when the file has it
                 if stats.hasElevation, let minE = stats.minElevation, let maxE = stats.maxElevation {
@@ -102,19 +187,6 @@ struct RouteInfoOverlay: View {
                     }
                 }
             }
-            .padding()
-            #if os(iOS)
-            .background(Color(UIColor.systemBackground).opacity(0.85))
-            #elseif os(macOS)
-            .background(Color(NSColor.windowBackgroundColor).opacity(0.85))
-            #endif
-            .cornerRadius(12)
-            .padding([.horizontal, .top])
-            .frame(maxWidth: 560, alignment: .leading)
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Spacer()
-        }
     }
 
     // Runners read pace, everyone else reads speed

@@ -6,6 +6,15 @@ struct ContentView: View {
     @Binding var document: GPXExploreDocument
     @StateObject private var settings = SettingsModel()
     @State private var isTracksDrawerOpen = false
+
+    // Phone layout: the drawer is a sheet, not a side panel, and the bar shows the
+    // buttons rather than the file name (the name is on the route card)
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    private var compact: Bool { sizeClass == .compact }
+    #else
+    private var compact: Bool { false }
+    #endif
     @State private var isSettingsPresented = false
     @State private var visibleSegments: [Bool] = []
     @State private var selectedTrackIndex: Int = 0
@@ -72,7 +81,15 @@ struct ContentView: View {
                         updateFromDocument()
                         isElevationOverlayVisible = settings.defaultShowElevationOverlay
                         isRouteInfoOverlayVisible = settings.defaultShowRouteInfoOverlay
+                        // The series chosen last time, when this file has it; the drawer flag is
+                        // for the screenshot script (-showTracksDrawer YES)
+                        if let saved = UserDefaults.standard.string(forKey: "chartMetric"), let m = ChartMetric(rawValue: saved),
+                           ChartMetric.available(for: visibleTrackSegments, stats: stats).contains(m) {
+                            chartMetric = m
+                        }
+                        if UserDefaults.standard.bool(forKey: "showTracksDrawer") { isTracksDrawerOpen = true }
                     }
+                    .onChange(of: chartMetric) { _, new in UserDefaults.standard.set(new.rawValue, forKey: "chartMetric") }
                     .onChange(of: document.trackSegments.count) { _, _ in updateFromDocument() }
                     .onChange(of: visibleSegments) { _, _ in recomputeStats() }
                     .onChange(of: settings.useMetricSystem) { _, _ in recomputeStats() }
@@ -237,21 +254,8 @@ struct ContentView: View {
                         Text(exportError ?? "")
                     }
 
-                    if isTracksDrawerOpen {
-                        TracksDrawer(
-                            isOpen: $isTracksDrawerOpen,
-                            document: $document,
-                            visibleSegments: $visibleSegments,
-                            selectedTrackIndex: $selectedTrackIndex,
-                            segments: $segments,
-                            waypointsVisible: $waypointsVisible,
-                            selectedWaypointIndex: $selectedWaypointIndex,
-                            onWaypointSelected: { coordinate in
-                                selectedWaypointCoordinate = coordinate
-                                NotificationCenter.default.post(name: Notification.Name("WaypointSelected"), object: nil)
-                            }
-                        )
-                        .environmentObject(settings)
+                    if isTracksDrawerOpen && !compact {
+                        tracksDrawer
                         .transition(.move(edge: .trailing))
                     }
                 }
@@ -267,8 +271,13 @@ struct ContentView: View {
             }
         }
         #if os(iOS)
-        .navigationTitle(documentTitle)
+        .navigationTitle(compact ? "" : documentTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: Binding(get: { compact && isTracksDrawerOpen }, set: { isTracksDrawerOpen = $0 })) {
+            tracksDrawer
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
         #elseif os(macOS)
         .background(MacWindowSizer().frame(width: 0, height: 0))
         #endif
@@ -277,6 +286,23 @@ struct ContentView: View {
             updateFromDocument()
         }
         .onChange(of: document.gpxFile?.filename) { _, _ in updateDocumentTitle() }
+    }
+
+    private var tracksDrawer: some View {
+        TracksDrawer(
+            isOpen: $isTracksDrawerOpen,
+            document: $document,
+            visibleSegments: $visibleSegments,
+            selectedTrackIndex: $selectedTrackIndex,
+            segments: $segments,
+            waypointsVisible: $waypointsVisible,
+            selectedWaypointIndex: $selectedWaypointIndex,
+            onWaypointSelected: { coordinate in
+                selectedWaypointCoordinate = coordinate
+                NotificationCenter.default.post(name: Notification.Name("WaypointSelected"), object: nil)
+            }
+        )
+        .environmentObject(settings)
     }
 
     // The file behind this document, for sharing; falls back to a temp copy of the text
