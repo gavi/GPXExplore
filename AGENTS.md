@@ -1,0 +1,93 @@
+# AGENTS.md
+
+## Shared workspace guidance
+
+Before working here, read these files in order if they are not already loaded:
+
+- [Apple workspace](../../AGENTS.md) — fallback: `~/work/apple/AGENTS.md`.
+- [gpxexplore wrapper](../AGENTS.md) — fallback: `~/work/apple/gpxexplore/AGENTS.md`.
+
+Resolve relative links from this file. For a worktree or standalone clone, use the
+fallback paths when the relative files are absent. Apply this repository’s local
+guidance after the shared guidance.
+
+These instructions apply to both Claude Code and Codex in this repository.
+The product wrapper one level up (`../AGENTS.md`, `../docs/`) holds the release plan, shipping and
+store notes; read it first.
+
+## Build and Test Commands
+- Build (Mac): `xcodebuild -project GPXExplore.xcodeproj -scheme GPXExplore -destination 'platform=macOS' build`
+- Build (iOS simulator): `xcodebuild -project GPXExplore.xcodeproj -scheme GPXExplore -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max' build`
+- Run the Mac app on a file: `open -a <built .app> file.gpx` (ad-hoc signing: `CODE_SIGN_IDENTITY="-"`)
+- Parser/statistics check without Xcode: `../tools/gpxcheck/run.sh ../samples/public/*.gpx`
+  compiles `Utils/GPXParser.swift` and `Models/TrackStatistics.swift` with a small `main.swift`
+  and prints one block per file (points, flags, times, elevation, sensors, splits, parse time).
+  `../samples/README.md` says what each file exercises and lists the expected numbers. Run it
+  after any change to those two files.
+- Screenshots: `AppStore/shots.sh [mac|iphone|ipad]` (Debug builds of both; picks the newest
+  binary in DerivedData) → `AppStore/screenshots/`; `AppStore/make-butterkit.py` → the
+  ButterKit package. Scenes are driven by launch arguments read through `UserDefaults`
+  (`-mapStyle`, `-useMetricSystem`, `-chartMetric`, `-showTracksDrawer`) plus `-openFile <path>`
+  on iOS (`SceneDelegate`), which opens a host file straight into the viewer.
+- There is no test target yet (planned).
+
+## App Functionality
+- GPX Explore is a cross-platform iOS/iPadOS/macOS viewer for GPX files: tracks coloured by grade or
+  elevation, a scrubbable chart of elevation or any recorded sensor series, peaks and valleys, a
+  route card with workout statistics and splits, a tracks/waypoints drawer, share and image export.
+- `QuickLookGPX` is a Mac Quick Look extension (embedded in the Mac app) with its **own copy** of
+  the parser (`QuickLookGPX/GPXParserBridge.swift`) because an app extension cannot link the app
+  target. A parser fix must be made in both; the copy skips extensions and full metadata on purpose.
+
+## Architecture (as of 1.5)
+- **Model** (`Utils/GPXParser.swift`): `GPXFile` (metadata, creator, version, tracks, waypoints),
+  `GPXTrack` (name/type/date, cmt/desc/src/links/number, `isRoute`, extensions, segments),
+  `GPXTrackSegment` (`locations: [CLLocation]` + parallel `samples: [SensorSample]`, `hasElevation`,
+  `hasTimestamps`), `GPXWaypoint` (full wptType), `SensorSample` (heart rate, cadence, power,
+  temperature, speed, plus every other trkpt field and unknown extension leaves).
+- **Parser**: one `XMLParser` delegate with an element stack of local names; namespace prefixes
+  are ignored; `GPXDate.fast` reads ISO 8601 (fraction, Z, ±HH:MM, zone-less = UTC) with integer
+  maths and falls back to the formatters, which cost ~60 µs a call and made big files take a
+  second. Missing `<ele>` → `verticalAccuracy = -1` (so does the 9999 sentinel); missing `<time>`
+  → `gpxMissingTimestamp` (epoch 0); segment flags say whether *any* point had them, validity is
+  per point. Route points are never timed (their `<time>` is a creation stamp). Points without
+  valid lat/lon are skipped. Nothing is fabricated.
+- **Statistics** (`Models/TrackStatistics.swift`): computed once per change of the visible
+  segments and cached in `ContentView` state. Distance prefix sums (the chart's x axis); a
+  timed interval needs valid stamps at both ends, same segment, clock moving forward; a stop is
+  slower than 0.5 m/s over a window of at least 5 s (`speeds` holds that windowed speed per
+  point, the chart uses it too; max speed is a median of five of them); average speed/pace =
+  timed distance over moving time; elapsed
+  skips gaps over a day; gain/loss accumulate with 1.5 m hysteresis; cadence ignores zeros;
+  splits. Every rule has a file in `../samples` behind it. `StatsFormat` formats
+  pace/speed/duration/elevation/distance.
+- **Phone layout**: `horizontalSizeClass == .compact` (iPhone) turns the route card into a
+  one-line strip that expands on tap, drops the chart panel's title and stats line, empties the
+  navigation title so the toolbar buttons fit, and presents the tracks drawer as a sheet. Keep
+  the map the largest thing on a phone; Gavi rejected the first 1.5 layout for burying it.
+- **Views**: `ContentView` (state, toolbar, share/export, shortcuts) → `MapView` (MKMapView
+  representable per platform; `MapView+Common.swift` has `ElevationPolyline`, the two renderers,
+  annotations), `RouteInfoOverlay` (the card), `ElevationOverlay` (chart + `ChartMetric` picker),
+  `TracksDrawer`, `SettingsView`. `Models/TrackColors.swift` is the single source of track colours
+  and grade computation, used by the renderers, the exporter and (as a copy) Quick Look.
+- **Export** (`Export/MapImageExporter.swift`): `MKMapSnapshotter` + CoreGraphics track pass +
+  chart bitmap from `ImageRenderer` → PNG in the temp dir; `ExportSheet` shares/saves it.
+- **Mac window** (`Window/MacWindowSizer.swift`): first document window fills the screen; the
+  frame is then autosaved and restored (`GPXExploreDocumentWindow`).
+- Settings are `UserDefaults`-backed in `SettingsModel`; the map renderers also read the
+  visualization mode and line width straight from `UserDefaults`.
+- **Icons**: `GPXExplore/AppIcon.icon` (Icon Composer, macOS/iOS 26+; two raster layers from
+  the 1024 art) beside `AppIcon.appiconset` (older systems), same name. The GPX document icon
+  is system-generated from the app icon (`CFBundleTypeIconSystemGenerated`); do not name an
+  icon file the bundle does not carry, and do not put an `.iconset` in the asset catalog. The
+  document type claims `com.topografix.gpx` only, never `public.xml`. Source art in `Design/`.
+
+## Localization
+- UI strings live in `GPXExplore/Localizable.xcstrings` (English source; German, French, Spanish,
+  Japanese) and `GPXExplore/InfoPlist.xcstrings`. The catalog is generated, not hand-edited:
+  translations are in `Localization/translations.json` (plural forms as `one`/`other`), keys
+  the compiler cannot see in `Localization/extra-keys.json`, and
+  `~/work/apple/tools/xcstrings.py` builds the catalog from a harvest of `*.stringsdata`
+  (skill `localize-app`). Write UI text as literal `Text("…")`/`LocalizedStringKey`; enums
+  shown in the UI expose a `title`; helpers that return display strings use `String(localized:)`;
+  never build plurals by appending "s".
