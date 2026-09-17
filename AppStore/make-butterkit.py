@@ -203,7 +203,11 @@ def variant(base, lang, captions, shot, is_hero, asset_filename):
     models = []
     for model in base["models"]:
         model = dict(model)
-        model["id"] = model["sourceModelID"] = new_id()
+        # The variant's device names the base device as its source and has an id of its own.
+        # With a fresh sourceModelID ButterKit rebuilds the device from the base on open and
+        # drops the localized screenshot (the empty-screen placeholder under a correct caption).
+        model["sourceModelID"] = model["id"]
+        model["id"] = new_id()
         model["screenImageFilename"] = asset_filename
         models.append(model)
     out = dict(base)
